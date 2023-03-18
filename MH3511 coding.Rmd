@@ -99,7 +99,6 @@ rainf.anom<- data.frame(month = rainf.new$month,
                           
                         }))
 
-
 #plotting scatter and line plots
 ggplot(rainf) + 
   geom_point(aes(x=month, y = total_rainfall)) + 
@@ -141,7 +140,7 @@ sst.anom <- subset(sst.anom,!dupes)
   
 ```
 
-## Plotting geom_lines of SST with SG SAT and Rainfall
+## Plotting scatter plots of SST with SG SAT and Rainfall
 ```{r}
 df_plot <- data.frame(date = sst.anom$month,
                       sst_anom = sst.anom$anom,
