@@ -1,0 +1,78 @@
+---
+title: "Untitled"
+author: "Ancel Chong Fu Shea"
+date: "3/16/2023"
+output: html_document
+---
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(scales)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+
+path <- 'C:/Users/ancel/Downloads/historical-daily-weather'
+
+setwd(path)
+
+data <- read.csv('historical-daily-weather-records.csv')
+
+head(data)
+
+as.Date(data[,1])
+
+monthly <- group_by(data,month = lubridate::floor_date(date, 'month')) 
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+
+```{r}
+
+path <- 'C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean'
+
+setwd(path)
+
+data_1 <- read.csv('surface-air-temperature-monthly-mean.csv')
+
+data_1[,1]<-as.Date(paste(data_1[,1], "-01", sep=""))
+
+ggplot(data_1) + 
+  geom_point(aes(x=month, y = mean_temp)) + 
+  geom_line(aes(x=month, y = mean_temp))
+
+```
+
+
+```{r}
+
+path <- 'C:/Users/ancel/Downloads/rainfall-monthly-total'
+
+setwd(path)
+
+data_2 <- read.csv('rainfall-monthly-total.csv')
+
+data_2[,1]<-as.Date(paste(data_2[,1], "-01", sep=""))
+
+ggplot(data_2) + 
+  geom_point(aes(x=month, y = total_rainfall)) + 
+  geom_line(aes(x=month, y = total_rainfall))
+
+
+```
