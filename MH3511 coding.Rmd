@@ -15,6 +15,7 @@ library(dplyr)
 library(scales)
 library(ggplot2)
 library(lubridate)
+library(gridExtra)
 
 #change data path as necessary..
 path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
@@ -110,6 +111,61 @@ ggplot(rainf) +
 ```{r}
 setwd(path)
 
+#read sst data
 sst <- read.table('sstoi.indices.txt',header=T)
+
+#finding ref range 1980-2010
+sst.ref <- sst[sst$YR >= 1980 & sst$YR <= 2010,]
+
+#sst baseline per month
+sst.ref <- sapply(1:12, function(m){
+  avg.sst <- round(mean(sst.ref[which(month(sst.ref$MON)==m),]$NINO3.4),4)
+})
+
+#sst range for 2011 onwards, data that matters
+sst.new<- sst[sst$YR >= 2011,]
+
+# finding anomaly with fixed dates. assume data was with respect to first day of the month
+# note the data has anomaly values bur wrt to 1990-2020.
+sst.anom<- data.frame(month = as.Date(paste(sst.new$YR,sst.new$MON,'01',sep='-')),
+                        anom = sapply(1:nrow(sst.new),function(i){
+                        
+                        #sst on a specific month - sst in ref period of the same month
+                        anomaly <- sst.new$NINO3.4[i]-sst.ref[sst.new$MON[i]]
+                          
+                        }))
+
+#remove duplicate data
+dupes <- duplicated(sst.anom$month)
+sst.anom <- subset(sst.anom,!dupes)
+  
+```
+
+## Plotting geom_lines of SST with SG SAT and Rainfall
+```{r}
+df_plot <- data.frame(date = sst.anom$month,
+                      sst_anom = sst.anom$anom,
+                      sat_anom=sat.anom$anom,
+                      rainf_anom=rainf.anom$anom)
+
+#calculate correlation
+sst.sat.corr <- cor(df_plot$sst_anom,df_plot$sat_anom)
+sst.rainf.corr <- cor(df_plot$sst_anom,df_plot$rainf_anom)
+
+df_corr <- data.frame(sst.sat.corr,sst.rainf.corr)
+
+print(df_corr)
+
+#scatter plots
+ggplot(df_plot,aes(x=rainf_anom))+
+  geom_point(aes(y=sst_anom,color='sst.rainf'))+
+  scale_color_manual(values=c('sst.rainf'='pink'))+
+  ggtitle('Monthly SG rainfall anomaly againt SST anomaly from Jan 2011- Feb 2023')
+
+ggplot(df_plot,aes(x=sat_anom))+
+  geom_point(aes(y=sst_anom,color='sst.sat'))+
+  scale_color_manual(values=c('sst.sat'='lightblue'))+
+  ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Feb 2023')
+
 
 ```
