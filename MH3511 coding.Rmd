@@ -7,24 +7,21 @@ output: html_document
 
 ## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
+## Set up
 ```{r}
 library(tidyverse)
 library(readxl)
 library(dplyr)
 library(scales)
+library(ggplot2)
+library(lubridate)
+
+#change data path as necessary..
+path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
+## Reading Data (what data is this)
 ```{r}
-
-path <- 'C:/Users/ancel/Downloads/historical-daily-weather'
 
 setwd(path)
 
@@ -32,47 +29,87 @@ data <- read.csv('historical-daily-weather-records.csv')
 
 head(data)
 
-as.Date(data[,1])
+data$date<-as.Date(data[,1])
 
 monthly <- group_by(data,month = lubridate::floor_date(date, 'month')) 
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-
-
-
+## Reading SG Surface Air Temp data
 ```{r}
-
-path <- 'C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean'
 
 setwd(path)
 
-data_1 <- read.csv('surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('surface-air-temperature-monthly-mean.csv')
 
-data_1[,1]<-as.Date(paste(data_1[,1], "-01", sep=""))
+sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
-ggplot(data_1) + 
+#getting reference range..
+sat.ref <- sat[sat$month >= as.Date('1980-01-01') & sat$month <= as.Date('2010-12-31'),]
+
+#calculate avg temp/month in ref period to act as a baseline for anomalies..
+sat.ref <- sapply(1:12, function(m){
+  avg.temp <- round(mean(sat.ref[which(month(sat.ref$month)==m),]$mean_temp),4)
+  
+})
+sat.new <- sat[sat$month >= as.Date('2011-01-01'),]
+
+#calculating sat anomalies from 2011 onwards..
+sat.anom<- data.frame(month = sat.new$month,
+                        anom = sapply(1:nrow(sat.new),function(i){
+                        
+                        #sat on a specific month - sat in ref period of the same month..
+                        anomaly <- sat.new$mean_temp[i]-sat.ref[month(sat.new$month[i])]
+                          
+                        }))
+
+ggplot(sat) + 
   geom_point(aes(x=month, y = mean_temp)) + 
   geom_line(aes(x=month, y = mean_temp))
 
 ```
 
-
+## Reading monthly SG rainfall data
 ```{r}
-
-path <- 'C:/Users/ancel/Downloads/rainfall-monthly-total'
-
 setwd(path)
 
-data_2 <- read.csv('rainfall-monthly-total.csv')
+#reading rainfall data..
+rainf <- read.csv('rainfall-monthly-total.csv')
 
-data_2[,1]<-as.Date(paste(data_2[,1], "-01", sep=""))
+rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
-ggplot(data_2) + 
+#getting reference range for rainfall..
+rainf.ref <- rainf[rainf$month >= as.Date('1980-01-01') & rainf$month <= as.Date('2010-12-31'),]
+
+#calculate avg rainf/month in ref period to act as a baseline for anomalies..
+rainf.ref <- sapply(1:12, function(m){
+  avg.rainf <- round(mean(rainf.ref[which(month(rainf.ref$month)==m),]$total_rainfall),4)
+})
+
+#find rainfall data period of interest, 2011 onwards..
+rainf.new <- rainf[rainf$month >= as.Date('2011-01-01'),]
+
+#caluclating rainfall anomalies from 2011..
+rainf.anom<- data.frame(month = rainf.new$month,
+                        anom = sapply(1:nrow(rainf.new),function(i){
+                        
+                        #rainfall on a specific month - rainfall in ref period of the same month
+                        anomaly <- rainf.new$total_rainfall[i]-rainf.ref[month(rainf.new$month[i])]
+                          
+                        }))
+
+
+#plotting scatter and line plots
+ggplot(rainf) + 
   geom_point(aes(x=month, y = total_rainfall)) + 
   geom_line(aes(x=month, y = total_rainfall))
 
+```
+
+## Reading SST data in pacific..
+```{r}
+setwd(path)
+
+sst <- read.table('sstoi.indices.txt',header=T)
 
 ```
