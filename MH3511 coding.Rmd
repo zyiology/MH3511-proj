@@ -141,7 +141,7 @@ sst.anom <- subset(sst.anom,!dupes)
   
 ```
 
-## Plotting geom_lines of SST with SG SAT and Rainfall
+## Plotting scatterplots of SST with SG SAT and Rainfall
 ```{r}
 df_plot <- data.frame(date = sst.anom$month,
                       sst_anom = sst.anom$anom,
