@@ -219,4 +219,16 @@ ggplot(lat_1)+
   geom_point(aes(x=datetime, y=X1))+
   geom_line (aes(x=datetime, y=X1))
 
+mean(cloudiness[1,1,])
+
+pacific_avg <- sapply(1:408, function(a){
+  year_avg <- mean(cloudiness[,,a])
+})
+
+lat <- data.frame(pacific_avg, datetime)
+
+ggplot(lat)+
+  geom_point(aes(x=datetime, y=pacific_avg))+
+  geom_line (aes(x=datetime, y=pacific_avg))
+
 ```
