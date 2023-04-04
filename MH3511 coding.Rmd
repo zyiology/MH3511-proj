@@ -35,7 +35,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 
 ```
 
-## Reading SG Surface Air Temp data
+## Reading SG Surface Air Temp data   
 ```{r}
 
 sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
@@ -413,8 +413,6 @@ ggplot(lat)+
 reference <- lat[1:396,]
 
 test <- lat[396:408,]
-
-
 
 
 ```
