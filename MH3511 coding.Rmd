@@ -16,17 +16,16 @@ library(scales)
 library(ggplot2)
 library(lubridate)
 library(gridExtra)
+library(ncdf4)
 
 #change data path as necessary..
-path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
+#path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
 ```
 
 ## Reading Data (what data is this)
 ```{r}
 
-setwd(path)
-
-data <- read.csv('historical-daily-weather-records.csv')
+data <- read.csv('data/historical-daily-weather-records.csv')
 
 head(data)
 
@@ -39,9 +38,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data
 ```{r}
 
-setwd(path)
-
-sat <- read.csv('surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
 
 sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
@@ -72,10 +69,9 @@ ggplot(sat) +
 
 ## Reading monthly SG rainfall data
 ```{r}
-setwd(path)
 
 #reading rainfall data..
-rainf <- read.csv('rainfall-monthly-total.csv')
+rainf <- read.csv('data/rainfall-monthly-total.csv')
 
 rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
@@ -108,10 +104,9 @@ ggplot(rainf) +
 
 ## Reading SST data in pacific..
 ```{r}
-setwd(path)
 
 #read sst data
-sst <- read.table('sstoi.indices.txt',header=T)
+sst <- read.table('data/sstoi.indices.txt',header=T)
 
 #finding ref range 1980-2010
 sst.ref <- sst[sst$YR >= 1980 & sst$YR <= 2010,]
@@ -169,3 +164,81 @@ ggplot(df_plot,aes(x=sat_anom))+
 
 
 ```
+
+## Reading Low level wind data
+
+```{r read_wind_data}
+
+x= lapply(1:2, function(i) {
+  y = lapply(1:2, function(j) {
+winddata = nc_open('data/wspd.mean.nc')})})
+
+time = ncvar_get(winddata,"time") #data starts from 1800/01, end at 2023/01
+startMonth = (1980-1800)*12+1 #1980/01
+endMonth = (2010-1800)*12 #2009/12
+
+lat = ncvar_get(winddata,'lat')
+lon = ncvar_get(winddata,'lon')
+latIndices = which(lat<=5 & lat>=-5)
+lonIndices = which(lon<=240 & lon>=190)
+
+windarray = ncvar_get(winddata, 'wspd')
+
+#get the mean of the wind values within the nino3.4 region
+ninoAreaMean = function(index) {
+  windslice = windarray[,,index]
+  ninoRegionData = windslice[lonIndices,latIndices]
+  return(mean(ninoRegionData,na.rm=TRUE))
+}
+
+refPeriodValues = sapply(startMonth:endMonth, ninoAreaMean)
+
+monthlyRefMeans = sapply(1:12,function(i) {
+  monthValues = refPeriodValues[seq(i,length(refPeriodValues),12)]
+  return(mean(monthValues))
+})
+
+#calculating anomaly
+startMonth = (2010-1800)*12+1 #2010/01
+endMonth = (2023-1800)*12 #2022/12
+periodValues = sapply(startMonth:endMonth, ninoAreaMean)
+
+periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2010))
+
+
+#image(lon,rev(lat),a)
+```
+
+plotting wind anomaly against sg
+```{r}
+
+cors = rep(0,11)
+for (i in -10:0) {
+  df_plot <- data.frame(windanomaly = periodAnomalies[1:(146+i)],
+                        sat_anom = sat.anom$anom[(-i+1):146],
+                        month = 1:(146+i))
+  cors[i+11]=cor(df_plot$windanomaly,df_plot$sat_anom)
+}
+
+cors2 = rep(0,11)
+for (i in 1:11) {
+  df_plot <- data.frame(windanomaly = periodAnomalies[i:(145+i)],
+                        sat_anom = sat.anom$anom[1:146],
+                        month = 1:(146))
+  cors2[i]=cor(df_plot$windanomaly,df_plot$sat_anom)
+}
+
+#scatter plots
+# ggplot(df_plot,aes(x=month))+
+#   geom_point(aes(y=windanomaly,color='sst.rainf'))+
+#   scale_color_manual(values=c('sst.rainf'='pink'))+
+#   ggtitle('Monthly SG rainfall anomaly againt SST anomaly from Jan 2011- Feb 2023')
+
+ggplot(df_plot,aes(x=month))+
+  geom_line(aes(y=sat_anom,color='sst.sat'))+
+  geom_line(aes(y=windanomaly))+
+  scale_color_manual(values=c('sst.sat'='lightblue'))+
+  ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Feb 2023')
+
+```
+
