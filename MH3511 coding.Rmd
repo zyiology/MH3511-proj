@@ -170,6 +170,110 @@ ggplot(df_plot,aes(x=sat_anom))+
 
 
 ```
+## Reading Sub Surface Temp data
+```{r}
+
+months <- 01:12
+
+years <- 1980:2022
+
+substemp.folder <- '/subsurfacetempfiles'
+
+substemp.file <- 'EN.4.2.2.f.analysis.g10.'
+
+#extracting subsurface data from netcdf files
+substemp <- lapply(1:length(years),function(i){
+  
+  setwd(paste(path,substemp.folder,sep=''))
+  
+  monthly <- lapply(1:length(months),function(k){
+    
+    if(months[k]<10){
+      data <- nc_open(paste(substemp.file,years[i],'0',months[k],'.nc',sep=''))
+    }
+    else{
+      data <- nc_open(paste(substemp.file,years[i],months[k],'.nc',sep=''))
+    }
+
+    
+  })
+  
+})
+
+#finding the mean temp at each month and each year
+substemp.mean <- sapply(1:length(substemp),function(j){
+  
+  monthly <- sapply(1:length(months),function(n){
+    
+    #finding all the temperature data
+    data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
+    
+    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    month.temp <- mean(data.temp[190:240,78:88,],na.rm=T)
+  
+})
+    
+})
+
+#convert celsius
+substemp.mean <- substemp.mean-273.15
+
+# start from 32 because that corresponds to 2011. Columns are years
+substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
+  
+  substemp.ref <- sapply(1:nrow(substemp.mean),function(r){
+    
+    #index 1:30 for the reference of 1980-2010.
+    anom <- substemp.mean[r,c]-mean(substemp.mean[r,1:30])
+    
+  })
+  
+})
+
+#turn matrix to vector for ease of access
+substemp.anom.vec <- as.vector(substemp.anom)
+
+```
+
+## Correlate Sub Surface temp with SG Rainfall & SAT
+```{r}
+#set upper limit on data so reduce data length
+df_plot2 <- data.frame(substemp_anom = substemp.anom.vec,
+                      sat_anom=sat.anom[1:144,2],
+                      rainf_anom=rainf.anom[1:144,2])
+
+#calculate correlation
+subs.sat.corr <- cor(df_plot2$substemp_anom,df_plot2$sat_anom)
+subs.rainf.corr <- cor(df_plot2$substemp_anom,df_plot2$rainf_anom)
+
+df_corr2 <- data.frame(subs.sat.corr,subs.rainf.corr)
+
+print(df_corr2)
+
+#scatter plots
+ggplot(df_plot2,aes(x=rainf_anom))+
+  geom_point(aes(y=substemp_anom,color='subs.rainf'))+
+  scale_color_manual(values=c('subs.rainf'='pink'))+
+  ggtitle('Monthly Sub Surf Temp anomaly againt SG Rainfall from Jan 2011- Dec 2022')
+
+ggplot(df_plot2,aes(x=sat_anom))+
+  geom_point(aes(y=substemp_anom,color='subs.sat'))+
+  scale_color_manual(values=c('subs.sat'='lightblue'))+
+  ggtitle('Monthly Sub Surf Temp anomaly againt SG SAT anomaly from Jan 2011- Dec 2022')
+
+ggplot(df_plot2,aes(x=1:nrow(df_plot2)))+
+  geom_line(aes(y=substemp_anom,color='subs'))+
+  geom_line(aes(y=sat_anom,color='sat'))+
+  #geom_line(aes(y=rainf_anom,color='rainf'))+
+  scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
+
+fakesat <- df_plot2$sat_anom[5:nrow(df_plot2)]
+fakesub <- df_plot2$substemp_anom[1:(nrow(df_plot2)-4)]
+
+ggplot()+
+  geom_line(aes(x=1:140,y=fakesub,color='subs'))+
+  geom_line(aes(x=1:140,y=fakesat,color='sat'))+
+  scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
 
 ```{r}
 
@@ -236,8 +340,6 @@ reference <- lat[1:396,]
 
 test <- lat[396:408,]
 
-
-  
 
 
 
