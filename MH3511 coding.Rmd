@@ -167,11 +167,13 @@ ggplot(df_plot,aes(x=sat_anom))+
 
 ## Reading Low level wind data
 
-```{r read_wind_data}
+```{r read_wind_data eval=FALSE}
 
-x= lapply(1:2, function(i) {
+x = lapply(1:2, function(i) {
   y = lapply(1:2, function(j) {
-winddata = nc_open('data/wspd.mean.nc')})})
+    winddata = nc_open('data/wspd.mean.nc')
+  })
+})
 
 time = ncvar_get(winddata,"time") #data starts from 1800/01, end at 2023/01
 startMonth = (1980-1800)*12+1 #1980/01
@@ -210,7 +212,7 @@ periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2010))
 ```
 
 plotting wind anomaly against sg
-```{r}
+```{r eval=FALSE}
 
 cors = rep(0,11)
 for (i in -10:0) {
@@ -250,14 +252,12 @@ months <- 01:12
 
 years <- 1980:2022
 
-substemp.folder <- '/subsurfacetempfiles'
+substemp.folder <- 'data/subsurfacetempfiles/'
 
-substemp.file <- 'EN.4.2.2.f.analysis.g10.'
+substemp.file <- paste0(substemp.folder, 'EN.4.2.2.f.analysis.g10.')
 
 #extracting subsurface data from netcdf files
 substemp <- lapply(1:length(years),function(i){
-  
-  setwd(paste(path,substemp.folder,sep=''))
   
   monthly <- lapply(1:length(months),function(k){
     
@@ -347,6 +347,7 @@ ggplot()+
   geom_line(aes(x=1:140,y=fakesub,color='subs'))+
   geom_line(aes(x=1:140,y=fakesat,color='sat'))+
   scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
+```
 
 ```{r}
 
