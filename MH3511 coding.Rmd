@@ -111,7 +111,7 @@ sst <- read.table('data/sstoi.indices.txt',header=T)
 #finding ref range 1980-2010
 sst.ref <- sst[sst$YR >= 1980 & sst$YR <= 2010,]
 
-#sst baseline per month
+#sst baseline per month 
 sst.ref <- sapply(1:12, function(m){
   avg.sst <- round(mean(sst.ref[which(month(sst.ref$MON)==m),]$NINO3.4),4)
 })
@@ -242,3 +242,178 @@ ggplot(df_plot,aes(x=month))+
 
 ```
 
+
+## Reading Sub Surface Temp data
+```{r}
+
+months <- 01:12
+
+years <- 1980:2022
+
+substemp.folder <- '/subsurfacetempfiles'
+
+substemp.file <- 'EN.4.2.2.f.analysis.g10.'
+
+#extracting subsurface data from netcdf files
+substemp <- lapply(1:length(years),function(i){
+  
+  setwd(paste(path,substemp.folder,sep=''))
+  
+  monthly <- lapply(1:length(months),function(k){
+    
+    if(months[k]<10){
+      data <- nc_open(paste(substemp.file,years[i],'0',months[k],'.nc',sep=''))
+    }
+    else{
+      data <- nc_open(paste(substemp.file,years[i],months[k],'.nc',sep=''))
+    }
+
+    
+  })
+  
+})
+
+#finding the mean temp at each month and each year
+substemp.mean <- sapply(1:length(substemp),function(j){
+  
+  monthly <- sapply(1:length(months),function(n){
+    
+    #finding all the temperature data
+    data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
+    
+    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    month.temp <- mean(data.temp[190:240,78:88,],na.rm=T)
+  
+})
+    
+})
+
+#convert celsius
+substemp.mean <- substemp.mean-273.15
+
+# start from 32 because that corresponds to 2011. Columns are years
+substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
+  
+  substemp.ref <- sapply(1:nrow(substemp.mean),function(r){
+    
+    #index 1:30 for the reference of 1980-2010.
+    anom <- substemp.mean[r,c]-mean(substemp.mean[r,1:30])
+    
+  })
+  
+})
+
+#turn matrix to vector for ease of access
+substemp.anom.vec <- as.vector(substemp.anom)
+
+```
+
+## Correlate Sub Surface temp with SG Rainfall & SAT
+```{r}
+#set upper limit on data so reduce data length
+df_plot2 <- data.frame(substemp_anom = substemp.anom.vec,
+                      sat_anom=sat.anom[1:144,2],
+                      rainf_anom=rainf.anom[1:144,2])
+
+#calculate correlation
+subs.sat.corr <- cor(df_plot2$substemp_anom,df_plot2$sat_anom)
+subs.rainf.corr <- cor(df_plot2$substemp_anom,df_plot2$rainf_anom)
+
+df_corr2 <- data.frame(subs.sat.corr,subs.rainf.corr)
+
+print(df_corr2)
+
+#scatter plots
+ggplot(df_plot2,aes(x=rainf_anom))+
+  geom_point(aes(y=substemp_anom,color='subs.rainf'))+
+  scale_color_manual(values=c('subs.rainf'='pink'))+
+  ggtitle('Monthly Sub Surf Temp anomaly againt SG Rainfall from Jan 2011- Dec 2022')
+
+ggplot(df_plot2,aes(x=sat_anom))+
+  geom_point(aes(y=substemp_anom,color='subs.sat'))+
+  scale_color_manual(values=c('subs.sat'='lightblue'))+
+  ggtitle('Monthly Sub Surf Temp anomaly againt SG SAT anomaly from Jan 2011- Dec 2022')
+
+ggplot(df_plot2,aes(x=1:nrow(df_plot2)))+
+  geom_line(aes(y=substemp_anom,color='subs'))+
+  geom_line(aes(y=sat_anom,color='sat'))+
+  #geom_line(aes(y=rainf_anom,color='rainf'))+
+  scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
+
+fakesat <- df_plot2$sat_anom[5:nrow(df_plot2)]
+fakesub <- df_plot2$substemp_anom[1:(nrow(df_plot2)-4)]
+
+ggplot()+
+  geom_line(aes(x=1:140,y=fakesub,color='subs'))+
+  geom_line(aes(x=1:140,y=fakesat,color='sat'))+
+  scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
+
+```{r}
+
+nc_data <- nc_open("C:/Users/ancel/Downloads/olr.mon.mean.nc")
+
+print (nc_data)
+
+attributes(nc_data$var)
+
+attributes(nc_data$dim)
+
+lat <- ncvar_get(nc_data, "lat")
+
+nlat <- dim(lat)
+
+lon <- ncvar_get(nc_data, "lon")
+
+nlon <- dim(lon)
+
+time <- ncvar_get(nc_data, "time")
+
+head(time) 
+tunits <- ncatt_get(nc_data, "time", "units") 
+nt <- dim(time) 
+
+cloudiness <- ncvar_get(nc_data, "olr") 
+
+fillvalue <- ncatt_get(nc_data, "olr", "_FillValue")
+
+dim(cloudiness)
+
+cloudiness[cloudiness==fillvalue$value] <- NA
+
+# Convert the number of hours to POSIXct format, specifying the origin as "1800-01-01"
+datetime <- as.Date(time, origin="1800-01-01")
+
+lat_range <- c(-5, 5)
+lon_range <- c(190, 240)
+
+lat_idx <- which(lat >= lat_range[1] & lat <= lat_range[2])
+lon_idx <- which(lon >= lon_range[1] & lon <= lon_range[2])
+
+cloud_data <- cloudiness[lon_idx,lat_idx,]
+
+lat_1 <- data.frame(t(cloud_data[1,,]), datetime)
+
+ggplot(lat_1)+
+  geom_point(aes(x=datetime, y=X1))+
+  geom_line (aes(x=datetime, y=X1))
+
+mean(cloudiness[1,1,])
+
+pacific_avg <- sapply(1:408, function(a){
+  year_avg <- mean(cloudiness[,,a])
+})
+
+lat <- data.frame(pacific_avg, datetime)
+
+ggplot(lat)+
+  geom_point(aes(x=datetime, y=pacific_avg))+
+  geom_line (aes(x=datetime, y=pacific_avg))
+
+reference <- lat[1:396,]
+
+test <- lat[396:408,]
+
+
+
+
+```
