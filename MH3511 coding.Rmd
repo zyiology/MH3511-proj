@@ -26,7 +26,7 @@ library(tibbletime)
 ## Reading Data (what data is this)
 ```{r}
 
-data <- read.csv('data/historical-daily-weather-records.csv')
+data <- read.csv('C:/Users/ancel/Downloads/historical-daily-weather-records.csv')
 
 head(data)
 
@@ -39,7 +39,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data   
 ```{r}
 
-sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean.csv')
 
 sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
@@ -72,7 +72,7 @@ ggplot(sat) +
 ```{r}
 
 #reading rainfall data..
-rainf <- read.csv('data/rainfall-monthly-total.csv')
+rainf <- read.csv('C:/Users/ancel/Downloads/rainfall-monthly-total.csv')
 
 rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
@@ -419,7 +419,7 @@ ggplot(lat)+
 
 reference <- lat[13:384,]
 
-test <- lat[385:531,]
+test <- lat[385:530,]
 
 jan_data <- data.frame()
 
@@ -639,4 +639,30 @@ for (i in 1:nrow(test)){
 
 ```
 
+
+Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+```{r}
+
+cor(rainf.anom[,2], test_anomoly[1:146,1])
+
+rainf.anom
+
+cor(sat.anom[,2], test_anomoly[1:146,1])
+
+cors = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(146+i),1],
+                        sat_anom = sat.anom$anom[(-i+1):146])
+  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
+}
+
+cors2 = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(146+i),1],
+                        rain_anom = rainf.anom$anom[(-i+1):146])
+  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
+}
+
+
+```
 
