@@ -17,6 +17,7 @@ library(ggplot2)
 library(lubridate)
 library(gridExtra)
 library(ncdf4)
+library(tibbletime)
 
 #change data path as necessary..
 #path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
@@ -351,7 +352,7 @@ ggplot()+
 
 ```{r}
 
-nc_data <- nc_open("C:/Users/ancel/Downloads/olr.mon.mean.nc")
+nc_data <- nc_open("C:/Users/ancel/Downloads/olr-monthly_v02r07_197901_202303.nc")
 
 print (nc_data)
 
@@ -382,7 +383,7 @@ dim(cloudiness)
 cloudiness[cloudiness==fillvalue$value] <- NA
 
 # Convert the number of hours to POSIXct format, specifying the origin as "1800-01-01"
-datetime <- as.Date(time, origin="1800-01-01")
+datetime <- as.Date(time, origin="1979-01-01")
 
 lat_range <- c(-5, 5)
 lon_range <- c(190, 240)
@@ -400,7 +401,7 @@ ggplot(lat_1)+
 
 mean(cloudiness[1,1,])
 
-pacific_avg <- sapply(1:408, function(a){
+pacific_avg <- sapply(1:531, function(a){
   year_avg <- mean(cloudiness[,,a])
 })
 
@@ -410,9 +411,232 @@ ggplot(lat)+
   geom_point(aes(x=datetime, y=pacific_avg))+
   geom_line (aes(x=datetime, y=pacific_avg))
 
-reference <- lat[1:396,]
 
-test <- lat[396:408,]
+```
+
+
+```{r}
+
+reference <- lat[13:384,]
+
+test <- lat[385:531,]
+
+jan_data <- data.frame()
+
+feb_data <- data.frame()
+
+mar_data <- data.frame()
+
+apr_data <- data.frame()
+
+may_data <- data.frame()
+
+jun_data <- data.frame()
+
+jul_data <- data.frame()
+
+aug_data <- data.frame()
+
+sep_data <- data.frame()
+
+oct_data <- data.frame()
+
+nov_data <- data.frame()
+
+dec_data <- data.frame()
+
+for (i in 1:nrow(reference)){
+  
+  if (month(reference[i,2])==1){
+    
+    jan_data[i,1:2]<-reference[i,] 
+    
+  }
+  
+  else if (month(reference[i,2])==2){
+    
+    feb_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==3){
+    
+    mar_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==4){
+    
+    apr_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==5){
+    
+    may_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==6){
+    
+    jun_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==7){
+    
+    jul_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==8){
+    
+    aug_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==9){
+    
+    sep_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==10){
+    
+    oct_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==11){
+    
+    nov_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  else if (month(reference[i,2])==12){
+    
+    dec_data[i,1:2]<-reference[i,]
+    
+  }
+  
+  
+}
+
+jan_data <- na.omit(jan_data)
+feb_data <- na.omit(feb_data)
+mar_data <- na.omit(mar_data)
+apr_data <- na.omit(apr_data)
+may_data <- na.omit(may_data)
+jun_data <- na.omit(jun_data)
+jul_data <- na.omit(jul_data)
+aug_data <- na.omit(aug_data)
+sep_data <- na.omit(sep_data)
+oct_data <- na.omit(oct_data)
+nov_data <- na.omit(nov_data)
+dec_data <- na.omit(dec_data)
+
+jan_data_avg <- mean(jan_data[,1])
+feb_data_avg <- mean(feb_data[,1])
+mar_data_avg <- mean(mar_data[,1])
+apr_data_avg <- mean(apr_data[,1])
+may_data_avg <- mean(may_data[,1])
+jun_data_avg <- mean(jun_data[,1])
+jul_data_avg <- mean(jul_data[,1])
+aug_data_avg <- mean(aug_data[,1])
+sep_data_avg <- mean(sep_data[,1])
+oct_data_avg <- mean(oct_data[,1])
+nov_data_avg <- mean(nov_data[,1])
+dec_data_avg <- mean(dec_data[,1])
 
 
 ```
+
+
+```{r}
+
+test_anomoly <- data.frame()
+
+for (i in 1:nrow(test)){
+  
+    if (month(test[i,2])==1){
+    
+    test_anomoly[i,1]<-test[i,1]-jan_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==2){
+    
+    test_anomoly[i,1]<-test[i,1]-feb_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==3){
+    
+    test_anomoly[i,1]<-test[i,1]-mar_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==4){
+    
+    test_anomoly[i,1]<-test[i,1]-apr_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==5){
+    
+    test_anomoly[i,1]<-test[i,1]-may_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==6){
+    
+    test_anomoly[i,1]<-test[i,1]-jun_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==7){
+    
+    test_anomoly[i,1]<-test[i,1]-jul_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==8){
+    
+    test_anomoly[i,1]<-test[i,1]-aug_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==9){
+    
+    test_anomoly[i,1]<-test[i,1]-sep_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==10){
+    
+    test_anomoly[i,1]<-test[i,1]-oct_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==11){
+    
+    test_anomoly[i,1]<-test[i,1]-nov_data_avg 
+    
+  }
+  
+  else if (month(test[i,2])==12){
+    
+    test_anomoly[i,1]<-test[i,1]-dec_data_avg 
+    
+  }
+  
+  else{
+    
+    print('Error')
+  }
+  
+}
+
+```
+
+
