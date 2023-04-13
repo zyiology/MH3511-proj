@@ -102,12 +102,38 @@ ggplot(rainf) +
 
 ```
 
-## Reading SST data in pacific..
+## SST Summary Statistics for SST
 ```{r}
 
 #read sst data
 sst <- read.table('data/sstoi.indices.txt',header=T)
 
+sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
+                        sst = sst$NINO3.4)
+
+sst.hist <- ggplot(data=sst.n34, aes(x=sst))+
+  geom_histogram(color='black',bins=50)+
+  xlab('SST')+
+  ylab('Frequency')+
+  ggtitle('Pacific monthly SST data from Jan 1982 to Feb 2023')
+  
+sst.hist #generally unimodal, normal dist.
+
+boxplot(sst.N3.4$sst, 
+        main = 'Pacific monthly SST data from Jan 1982 to Feb 2023',
+        ylab = 'SST')
+
+sst.ts <- ggplot(sst.n34, aes(x=month,y=sst))+
+  geom_path()+
+  ggtitle('Pacific monthly SST Time Series from 1982 to 2023')+
+  xlab('Time')
+
+sst.ts #data looks sound
+
+```
+
+## Finding SST Anomaly Data in the Pacific
+```{r}
 #finding ref range 1980-2010
 sst.ref <- sst[sst$YR >= 1980 & sst$YR <= 2010,]
 
@@ -136,7 +162,6 @@ sst.anom <- subset(sst.anom,!dupes)
 ```
 
 ## Plotting scatter plots of SST with SG SAT and Rainfall
-
 ```{r}
 df_plot <- data.frame(date = sst.anom$month,
                       sst_anom = sst.anom$anom,
@@ -161,6 +186,7 @@ ggplot(df_plot,aes(x=sat_anom))+
   geom_point(aes(y=sst_anom,color='sst.sat'))+
   scale_color_manual(values=c('sst.sat'='lightblue'))+
   ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Feb 2023')
+
 
 
 ```
@@ -274,6 +300,37 @@ substemp <- lapply(1:length(years),function(i){
 })
 
 #finding the mean temp at each month and each year
+substemp.all <- sapply(1:length(substemp),function(j){
+  
+  monthly <- sapply(1:length(months),function(n){
+    
+    #finding all the temperature data
+    data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
+    
+    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    all.temp <- data.temp[190:240,78:88,]
+    #temp <- data.temp[190:240,78:88,]
+  
+})
+    
+})
+
+substemp.all.df <- data.frame(substemp = c(substemp.all))
+
+substemp.hist <- ggplot(data=substemp.all.df, aes(x=substemp))+
+  geom_histogram(color='black',bins=50)+
+  xlab('Sub Surf Temp')+
+  ylab('Frequency')+
+  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
+  
+substemp.hist #generally unimodal, normal dist.
+
+boxplot(substemp.all.df$substemp, 
+        main = 'Pacific monthly Sub surface temp data from Jan 1980 to Feb 2023',
+        ylab = 'Sub Surf Temp')
+
+
+#finding the mean temp at each month and each year
 substemp.mean <- sapply(1:length(substemp),function(j){
   
   monthly <- sapply(1:length(months),function(n){
@@ -283,6 +340,7 @@ substemp.mean <- sapply(1:length(substemp),function(j){
     
     #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
     month.temp <- mean(data.temp[190:240,78:88,],na.rm=T)
+    #temp <- data.temp[190:240,78:88,]
   
 })
     
@@ -351,7 +409,7 @@ ggplot()+
 
 ```{r}
 
-nc_data <- nc_open("C:/Users/ancel/Downloads/olr.mon.mean.nc")
+nc_data <- nc_open("data/olr.mon.mean.nc")
 
 print (nc_data)
 
