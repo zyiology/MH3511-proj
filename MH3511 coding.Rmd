@@ -18,13 +18,14 @@ library(lubridate)
 library(gridExtra)
 library(ncdf4)
 library(tibbletime)
+library(GGally)
 
 ```
 
 ## Reading Data (what data is this)
 ```{r}
 
-data <- read.csv('C:/Users/ancel/Downloads/historical-daily-weather-records.csv')
+data <- read.csv('data/historical-daily-weather-records.csv')
 
 head(data)
 
@@ -37,7 +38,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data   
 ```{r}
 
-sat <- read.csv('C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
 
 sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
@@ -70,7 +71,7 @@ ggplot(sat) +
 ```{r}
 
 #reading rainfall data..
-rainf <- read.csv('C:/Users/ancel/Downloads/rainfall-monthly-total.csv')
+rainf <- read.csv('data/rainfall-monthly-total.csv')
 
 rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
@@ -101,12 +102,38 @@ ggplot(rainf) +
 
 ```
 
-## Reading SST data in pacific..
+## SST Summary Statistics for SST
 ```{r}
 
 #read sst data
 sst <- read.table('data/sstoi.indices.txt',header=T)
 
+sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
+                        sst = sst$NINO3.4)
+
+sst.hist <- ggplot(data=sst.n34, aes(x=sst))+
+  geom_histogram(color='black',bins=50)+
+  xlab('SST')+
+  ylab('Frequency')+
+  ggtitle('Pacific monthly SST data from Jan 1982 to Feb 2023')
+  
+sst.hist #generally unimodal, normal dist.
+
+boxplot(sst.n34$sst, 
+        main = 'Pacific monthly SST data from Jan 1982 to Feb 2023',
+        ylab = 'SST')
+
+sst.ts <- ggplot(sst.n34, aes(x=month,y=sst))+
+  geom_path()+
+  ggtitle('Pacific monthly SST Time Series from 1982 to 2023')+
+  xlab('Time')
+
+sst.ts #data looks sound
+
+```
+
+## Finding SST Anomaly Data in the Pacific
+```{r}
 #finding ref range 1980-2010
 sst.ref <- sst[sst$YR >= 1980 & sst$YR <= 2010,]
 
@@ -135,7 +162,6 @@ sst.anom <- subset(sst.anom,!dupes)
 ```
 
 ## Plotting scatter plots of SST with SG SAT and Rainfall
-
 ```{r}
 df_plot <- data.frame(date = sst.anom$month,
                       sst_anom = sst.anom$anom,
@@ -161,6 +187,35 @@ ggplot(df_plot,aes(x=sat_anom))+
   scale_color_manual(values=c('sst.sat'='lightblue'))+
   ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Dec 2022')
 
+# timeshifting to find best correlation for sst & sg sat, consider only forward shift since we using pacific data to predict sg data
+corr.ts.sat.sst <- sapply(1:12,function(i){
+  
+  ts.sst <- sst.anom[i:nrow(sst.anom),2]
+  ts.sat <- sat.anom[1:(nrow(sst.anom)-i+1),2]
+  cor.ts <- cor(ts.sst,ts.sat)
+  month.cor <- c(i,cor.ts)
+  return (month.cor)
+})
+
+corr.ts.sat.sst.df <- data.frame(month = corr.ts.sat.sst[1,],
+                              corr.sst.sat = corr.ts.sat.sst[2,])
+
+best.ts.sst.sat <- which.max(abs(corr.ts.sat.sst.df$corr.sst.sat))
+
+# timeshifting to find best correlation for sst & sg rainf, consider only forward shift since we using pacific data to predict sg data
+corr.ts.rainf.sst <- sapply(1:12,function(i){
+  
+  ts.sst <- sst.anom[i:nrow(sst.anom),2]
+  ts.rainf <- rainf.anom[1:(nrow(rainf.anom)-i+1),2]
+  cor.ts <- cor(ts.sst,ts.rainf)
+  month.cor <- c(i,cor.ts)
+  return (month.cor)
+})
+
+corr.ts.rainf.sst.df <- data.frame(month = corr.ts.rainf.sst[1,],
+                              corr.sst.rainf = corr.ts.rainf.sst[2,])
+
+best.ts.sst.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
 
 ```
 
@@ -169,6 +224,7 @@ ggplot(df_plot,aes(x=sat_anom))+
 ```{r read_wind_data}
 
 winddata = nc_open('data/wspd.mean.nc')
+
 
 #calculating baseline values from 1980-2010
 time = ncvar_get(winddata,"time") #data starts from 1800/01, end at 2023/01
@@ -199,11 +255,14 @@ monthlyRefMeans = sapply(1:12,function(i) {
   return(mean(monthValues))
 })
 
+
 #calculating anomaly (temperature for a given month - corresponding baseline)
+
 startMonth = (2011-1800)*12+1 #2011/01
 endMonth = (2023-1800)*12 #2022/12
 periodValues = sapply(startMonth:endMonth, ninoAreaMean)
 periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2011))
+
 
 ```
 
@@ -277,6 +336,39 @@ substemp <- lapply(1:length(years),function(i){
 })
 
 #finding the mean temp at each month and each year
+substemp.all <- sapply(1:length(substemp),function(j){
+  
+  monthly <- sapply(1:length(months),function(n){
+    
+    #finding all the temperature data
+    data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
+    
+    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    all.temp <- data.temp[190:240,78:88,]
+    #temp <- data.temp[190:240,78:88,]
+  
+})
+    
+})
+
+substemp.all.df <- data.frame(substemp = c(substemp.all))
+
+substemp.all.df <- substemp.all.df - 273.15
+
+substemp.hist <- ggplot(data=substemp.all.df, aes(x=substemp))+
+  geom_histogram(color='black',bins=100)+
+  xlab('Sub Surf Temp')+
+  ylab('Frequency')+
+  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
+  
+substemp.hist #generally unimodal, normal dist.
+
+boxplot(substemp.all.df$substemp, 
+        main = 'Pacific monthly Sub surface temp data from Jan 1980 to Feb 2023',
+        ylab = 'Sub Surf Temp')
+
+
+#finding the mean temp at each month and each year
 substemp.mean <- sapply(1:length(substemp),function(j){
   
   monthly <- sapply(1:length(months),function(n){
@@ -286,6 +378,7 @@ substemp.mean <- sapply(1:length(substemp),function(j){
     
     #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
     month.temp <- mean(data.temp[190:240,78:88,],na.rm=T)
+    #temp <- data.temp[190:240,78:88,]
   
 })
     
@@ -309,6 +402,8 @@ substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
 
 #turn matrix to vector for ease of access
 substemp.anom.vec <- as.vector(substemp.anom)
+
+
 
 ```
 
@@ -344,18 +439,48 @@ ggplot(df_plot2,aes(x=1:nrow(df_plot2)))+
   #geom_line(aes(y=rainf_anom,color='rainf'))+
   scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
 
-fakesat <- df_plot2$sat_anom[5:nrow(df_plot2)]
-fakesub <- df_plot2$substemp_anom[1:(nrow(df_plot2)-4)]
+# fakesat <- df_plot2$sat_anom[5:nrow(df_plot2)]
+# fakesub <- df_plot2$substemp_anom[1:(nrow(df_plot2)-4)]
+# 
+# ggplot()+
+#   geom_line(aes(x=1:140,y=fakesub,color='subs'))+
+#   geom_line(aes(x=1:140,y=fakesat,color='sat'))+
+#   scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
 
-ggplot()+
-  geom_line(aes(x=1:140,y=fakesub,color='subs'))+
-  geom_line(aes(x=1:140,y=fakesat,color='sat'))+
-  scale_color_manual(values=c(subs='red',sat='lightgreen','rainf'='lightblue'))
+# timeshifting to find best correlation for substemp & sg sat, consider only forward shift since we using pacific data to predict sg data
+corr.ts.sat.substemp <- sapply(1:12,function(i){
+  
+  ts.substemp <- substemp.anom.vec[i:length(substemp.anom.vec)]
+  ts.sat <- sat.anom[1:(nrow(sat.anom)-i+1),2]
+  cor.ts <- cor(ts.substemp,ts.sat)
+  month.cor <- c(i,cor.ts)
+  return (month.cor)
+})
+
+corr.ts.sat.substemp.df <- data.frame(month = corr.ts.sat.substemp[1,],
+                              corr.substemp.sat = corr.ts.sat.substemp[2,])
+
+best.ts.substemp.sat <- which.max(abs(corr.ts.sat.substemp.df$corr.substemp.sat))
+
+# timeshifting to find best correlation for substemp & sg rainf, consider only forward shift since we using pacific data to predict sg data
+corr.ts.rainf.substemp <- sapply(1:12,function(i){
+  
+  ts.substemp <- substemp.anom.vec[i:length(substemp.anom.vec)]
+  ts.rainf <- rainf.anom[1:(nrow(rainf.anom)-i+1),2]
+  cor.ts <- cor(ts.substemp,ts.rainf)
+  month.cor <- c(i,cor.ts)
+  return (month.cor)
+})
+
+corr.ts.rainf.substemp.df <- data.frame(month = corr.ts.rainf.substemp[1,],
+                              corr.substemp.rainf = corr.ts.rainf.substemp[2,])
+
+best.ts.substemp.rainf <- which.max(abs(corr.ts.rainf.substemp.df$corr.substemp.rainf))
 ```
 
 ```{r}
 
-nc_data <- nc_open("data/olr.mon.mean.nc")
+nc_data <- nc_open("data/olr-monthly_v02r07_197901_202303.nc")
 
 print (nc_data)
 
@@ -414,7 +539,6 @@ ggplot(lat)+
   geom_point(aes(x=datetime, y=pacific_avg))+
   geom_line (aes(x=datetime, y=pacific_avg))
 
-
 ```
 
 
@@ -422,7 +546,7 @@ ggplot(lat)+
 
 reference <- lat[13:384,]
 
-test <- lat[385:530,]
+test <- lat[385:528,]
 
 jan_data <- data.frame()
 
@@ -642,27 +766,73 @@ for (i in 1:nrow(test)){
 
 ```
 
-
-Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
 ```{r}
 
-cor(rainf.anom[,2], test_anomoly[1:146,1])
+cor(rainf.anom[,2], test_anomoly[,1])
 
 rainf.anom
 
-cor(sat.anom[,2], test_anomoly[1:146,1])
+cor(sat.anom[,2], test_anomoly[,1])
 
 cors = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(146+i),1],
-                        sat_anom = sat.anom$anom[(-i+1):146])
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(144+i),1],
+                        sat_anom = sat.anom$anom[(-i+1):144])
+  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
+}
+
+```
+
+## All Data, Pairs Plot (Not Time Shifted)
+```{r message=FALSE, warning=FALSE}
+enso.df <- data.frame(month = sat.anom$month,
+                      sat.sg=sat.anom$anom,
+                      rainf.sg=rainf.anom$anom,
+                      sst.pcf=sst.anom$anom,
+                      substemp.pcf=substemp.anom.vec,
+                      okla.pcf=test_anomoly$V1,
+                      wind.pcf=periodAnomalies)
+
+enso.df.nd <- enso.df[,2:ncol(enso.df)]
+
+lowerFn <- function(data, mapping, method = "lm", ...) {
+  p <- ggplot(data = data, mapping = mapping) +
+    geom_point(colour = "black",size=0.3,alpha=0.5) +
+    geom_smooth(method = method, color = "red", alpha=0.7,linewidth=0.5,...)
+  p
+}
+
+ggpairs(enso.df.nd,columns = 1:ncol(enso.df.nd),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
+
+```
+
+## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+```{r}
+
+cor(rainf.anom[,2], test_anomoly[,1])
+
+rainf.anom
+
+cor(sat.anom[,2], test_anomoly[,1])
+
+cors = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i),1],
+                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
 
 cors2 = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(146+i),1],
-                        rain_anom = rainf.anom$anom[(-i+1):146])
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i),1],
+                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
 
