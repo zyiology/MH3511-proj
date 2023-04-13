@@ -469,6 +469,7 @@ best.ts.substemp.rainf <- which.max(abs(corr.ts.rainf.substemp.df$corr.substemp.
 ```
 
 ```{r}
+
 nc_data <- nc_open("data/olr-monthly_v02r07_197901_202303.nc")
 
 print (nc_data)
@@ -755,7 +756,6 @@ for (i in 1:nrow(test)){
 
 ```
 
-
 Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
 ```{r}
 
@@ -802,7 +802,6 @@ ggpairs(enso.df.nd,columns = 1:ncol(enso.df.nd),
               axis.text = element_text(size=7))
 
 ```
-
 
 ## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
 ```{r}
