@@ -546,238 +546,246 @@ ggplot(lat)+
 
 reference <- lat[13:384,]
 
-test <- lat[385:528,]
+monthly_means = sapply(1:12, function(i) {
+  mean(reference[seq(i,nrow(reference),12),1])
+})
 
-jan_data <- data.frame()
-
-feb_data <- data.frame()
-
-mar_data <- data.frame()
-
-apr_data <- data.frame()
-
-may_data <- data.frame()
-
-jun_data <- data.frame()
-
-jul_data <- data.frame()
-
-aug_data <- data.frame()
-
-sep_data <- data.frame()
-
-oct_data <- data.frame()
-
-nov_data <- data.frame()
-
-dec_data <- data.frame()
-
-for (i in 1:nrow(reference)){
-  
-  if (month(reference[i,2])==1){
-    
-    jan_data[i,1:2]<-reference[i,] 
-    
-  }
-  
-  else if (month(reference[i,2])==2){
-    
-    feb_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==3){
-    
-    mar_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==4){
-    
-    apr_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==5){
-    
-    may_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==6){
-    
-    jun_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==7){
-    
-    jul_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==8){
-    
-    aug_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==9){
-    
-    sep_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==10){
-    
-    oct_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==11){
-    
-    nov_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  else if (month(reference[i,2])==12){
-    
-    dec_data[i,1:2]<-reference[i,]
-    
-  }
-  
-  
-}
-
-jan_data <- na.omit(jan_data)
-feb_data <- na.omit(feb_data)
-mar_data <- na.omit(mar_data)
-apr_data <- na.omit(apr_data)
-may_data <- na.omit(may_data)
-jun_data <- na.omit(jun_data)
-jul_data <- na.omit(jul_data)
-aug_data <- na.omit(aug_data)
-sep_data <- na.omit(sep_data)
-oct_data <- na.omit(oct_data)
-nov_data <- na.omit(nov_data)
-dec_data <- na.omit(dec_data)
-
-jan_data_avg <- mean(jan_data[,1])
-feb_data_avg <- mean(feb_data[,1])
-mar_data_avg <- mean(mar_data[,1])
-apr_data_avg <- mean(apr_data[,1])
-may_data_avg <- mean(may_data[,1])
-jun_data_avg <- mean(jun_data[,1])
-jul_data_avg <- mean(jul_data[,1])
-aug_data_avg <- mean(aug_data[,1])
-sep_data_avg <- mean(sep_data[,1])
-oct_data_avg <- mean(oct_data[,1])
-nov_data_avg <- mean(nov_data[,1])
-dec_data_avg <- mean(dec_data[,1])
-
+# 
+# test <- lat[385:528,]
+# 
+# jan_data <- data.frame()
+# 
+# feb_data <- data.frame()
+# 
+# mar_data <- data.frame()
+# 
+# apr_data <- data.frame()
+# 
+# may_data <- data.frame()
+# 
+# jun_data <- data.frame()
+# 
+# jul_data <- data.frame()
+# 
+# aug_data <- data.frame()
+# 
+# sep_data <- data.frame()
+# 
+# oct_data <- data.frame()
+# 
+# nov_data <- data.frame()
+# 
+# dec_data <- data.frame()
+# 
+# for (i in 1:nrow(reference)){
+#   
+#   if (month(reference[i,2])==1){
+#     
+#     jan_data[i,1:2]<-reference[i,] 
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==2){
+#     
+#     feb_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==3){
+#     
+#     mar_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==4){
+#     
+#     apr_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==5){
+#     
+#     may_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==6){
+#     
+#     jun_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==7){
+#     
+#     jul_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==8){
+#     
+#     aug_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==9){
+#     
+#     sep_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==10){
+#     
+#     oct_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==11){
+#     
+#     nov_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   else if (month(reference[i,2])==12){
+#     
+#     dec_data[i,1:2]<-reference[i,]
+#     
+#   }
+#   
+#   
+# }
+# 
+# jan_data <- na.omit(jan_data)
+# feb_data <- na.omit(feb_data)
+# mar_data <- na.omit(mar_data)
+# apr_data <- na.omit(apr_data)
+# may_data <- na.omit(may_data)
+# jun_data <- na.omit(jun_data)
+# jul_data <- na.omit(jul_data)
+# aug_data <- na.omit(aug_data)
+# sep_data <- na.omit(sep_data)
+# oct_data <- na.omit(oct_data)
+# nov_data <- na.omit(nov_data)
+# dec_data <- na.omit(dec_data)
+# 
+# jan_data_avg <- mean(jan_data[,1])
+# feb_data_avg <- mean(feb_data[,1])
+# mar_data_avg <- mean(mar_data[,1])
+# apr_data_avg <- mean(apr_data[,1])
+# may_data_avg <- mean(may_data[,1])
+# jun_data_avg <- mean(jun_data[,1])
+# jul_data_avg <- mean(jul_data[,1])
+# aug_data_avg <- mean(aug_data[,1])
+# sep_data_avg <- mean(sep_data[,1])
+# oct_data_avg <- mean(oct_data[,1])
+# nov_data_avg <- mean(nov_data[,1])
+# dec_data_avg <- mean(dec_data[,1])
+# 
 
 ```
 
 
 ```{r}
 
-test_anomoly <- data.frame()
-
-for (i in 1:nrow(test)){
-  
-    if (month(test[i,2])==1){
-    
-    test_anomoly[i,1]<-test[i,1]-jan_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==2){
-    
-    test_anomoly[i,1]<-test[i,1]-feb_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==3){
-    
-    test_anomoly[i,1]<-test[i,1]-mar_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==4){
-    
-    test_anomoly[i,1]<-test[i,1]-apr_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==5){
-    
-    test_anomoly[i,1]<-test[i,1]-may_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==6){
-    
-    test_anomoly[i,1]<-test[i,1]-jun_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==7){
-    
-    test_anomoly[i,1]<-test[i,1]-jul_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==8){
-    
-    test_anomoly[i,1]<-test[i,1]-aug_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==9){
-    
-    test_anomoly[i,1]<-test[i,1]-sep_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==10){
-    
-    test_anomoly[i,1]<-test[i,1]-oct_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==11){
-    
-    test_anomoly[i,1]<-test[i,1]-nov_data_avg 
-    
-  }
-  
-  else if (month(test[i,2])==12){
-    
-    test_anomoly[i,1]<-test[i,1]-dec_data_avg 
-    
-  }
-  
-  else{
-    
-    print('Error')
-  }
-  
-}
-
+test_anomoly = test[,1] - rep(monthly_means,12)
+# 
+# test_anomoly <- data.frame()
+# 
+# for (i in 1:nrow(test)){
+#   
+#     if (month(test[i,2])==1){
+#     
+#     test_anomoly[i,1]<-test[i,1]-jan_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==2){
+#     
+#     test_anomoly[i,1]<-test[i,1]-feb_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==3){
+#     
+#     test_anomoly[i,1]<-test[i,1]-mar_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==4){
+#     
+#     test_anomoly[i,1]<-test[i,1]-apr_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==5){
+#     
+#     test_anomoly[i,1]<-test[i,1]-may_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==6){
+#     
+#     test_anomoly[i,1]<-test[i,1]-jun_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==7){
+#     
+#     test_anomoly[i,1]<-test[i,1]-jul_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==8){
+#     
+#     test_anomoly[i,1]<-test[i,1]-aug_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==9){
+#     
+#     test_anomoly[i,1]<-test[i,1]-sep_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==10){
+#     
+#     test_anomoly[i,1]<-test[i,1]-oct_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==11){
+#     
+#     test_anomoly[i,1]<-test[i,1]-nov_data_avg 
+#     
+#   }
+#   
+#   else if (month(test[i,2])==12){
+#     
+#     test_anomoly[i,1]<-test[i,1]-dec_data_avg 
+#     
+#   }
+#   
+#   else{
+#     
+#     print('Error')
+#   }
+#   
+# }
+# 
 ```
-
+ 
 Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
+
 ```{r}
 
-cor(rainf.anom[,2], test_anomoly[,1])
+cor(rainf.anom[,2], test_anomoly)
 
 rainf.anom
 
-cor(sat.anom[,2], test_anomoly[,1])
+cor(sat.anom[,2], test_anomoly)
 
 cors = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(144+i),1],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(144+i)],
                         sat_anom = sat.anom$anom[(-i+1):144])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
@@ -791,7 +799,7 @@ enso.df <- data.frame(month = sat.anom$month,
                       rainf.sg=rainf.anom$anom,
                       sst.pcf=sst.anom$anom,
                       substemp.pcf=substemp.anom.vec,
-                      okla.pcf=test_anomoly$V1,
+                      okla.pcf=test_anomoly,
                       wind.pcf=periodAnomalies)
 
 enso.df.nd <- enso.df[,2:ncol(enso.df)]
@@ -816,22 +824,22 @@ ggpairs(enso.df.nd,columns = 1:ncol(enso.df.nd),
 ## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
 ```{r}
 
-cor(rainf.anom[,2], test_anomoly[,1])
+cor(rainf.anom[,2], test_anomoly)
 
 rainf.anom
 
-cor(sat.anom[,2], test_anomoly[,1])
+cor(sat.anom[,2], test_anomoly)
 
 cors = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i),1],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i)],
                         sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
 
 cors2 = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i),1],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i)],
                         rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
