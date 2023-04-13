@@ -550,227 +550,15 @@ monthly_means = sapply(1:12, function(i) {
   mean(reference[seq(i,nrow(reference),12),1])
 })
 
-# 
-# test <- lat[385:528,]
-# 
-# jan_data <- data.frame()
-# 
-# feb_data <- data.frame()
-# 
-# mar_data <- data.frame()
-# 
-# apr_data <- data.frame()
-# 
-# may_data <- data.frame()
-# 
-# jun_data <- data.frame()
-# 
-# jul_data <- data.frame()
-# 
-# aug_data <- data.frame()
-# 
-# sep_data <- data.frame()
-# 
-# oct_data <- data.frame()
-# 
-# nov_data <- data.frame()
-# 
-# dec_data <- data.frame()
-# 
-# for (i in 1:nrow(reference)){
-#   
-#   if (month(reference[i,2])==1){
-#     
-#     jan_data[i,1:2]<-reference[i,] 
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==2){
-#     
-#     feb_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==3){
-#     
-#     mar_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==4){
-#     
-#     apr_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==5){
-#     
-#     may_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==6){
-#     
-#     jun_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==7){
-#     
-#     jul_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==8){
-#     
-#     aug_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==9){
-#     
-#     sep_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==10){
-#     
-#     oct_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==11){
-#     
-#     nov_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   else if (month(reference[i,2])==12){
-#     
-#     dec_data[i,1:2]<-reference[i,]
-#     
-#   }
-#   
-#   
-# }
-# 
-# jan_data <- na.omit(jan_data)
-# feb_data <- na.omit(feb_data)
-# mar_data <- na.omit(mar_data)
-# apr_data <- na.omit(apr_data)
-# may_data <- na.omit(may_data)
-# jun_data <- na.omit(jun_data)
-# jul_data <- na.omit(jul_data)
-# aug_data <- na.omit(aug_data)
-# sep_data <- na.omit(sep_data)
-# oct_data <- na.omit(oct_data)
-# nov_data <- na.omit(nov_data)
-# dec_data <- na.omit(dec_data)
-# 
-# jan_data_avg <- mean(jan_data[,1])
-# feb_data_avg <- mean(feb_data[,1])
-# mar_data_avg <- mean(mar_data[,1])
-# apr_data_avg <- mean(apr_data[,1])
-# may_data_avg <- mean(may_data[,1])
-# jun_data_avg <- mean(jun_data[,1])
-# jul_data_avg <- mean(jul_data[,1])
-# aug_data_avg <- mean(aug_data[,1])
-# sep_data_avg <- mean(sep_data[,1])
-# oct_data_avg <- mean(oct_data[,1])
-# nov_data_avg <- mean(nov_data[,1])
-# dec_data_avg <- mean(dec_data[,1])
-# 
 
+test <- lat[385:528,]
 ```
 
 
 ```{r}
 
 test_anomoly = test[,1] - rep(monthly_means,12)
-# 
-# test_anomoly <- data.frame()
-# 
-# for (i in 1:nrow(test)){
-#   
-#     if (month(test[i,2])==1){
-#     
-#     test_anomoly[i,1]<-test[i,1]-jan_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==2){
-#     
-#     test_anomoly[i,1]<-test[i,1]-feb_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==3){
-#     
-#     test_anomoly[i,1]<-test[i,1]-mar_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==4){
-#     
-#     test_anomoly[i,1]<-test[i,1]-apr_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==5){
-#     
-#     test_anomoly[i,1]<-test[i,1]-may_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==6){
-#     
-#     test_anomoly[i,1]<-test[i,1]-jun_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==7){
-#     
-#     test_anomoly[i,1]<-test[i,1]-jul_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==8){
-#     
-#     test_anomoly[i,1]<-test[i,1]-aug_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==9){
-#     
-#     test_anomoly[i,1]<-test[i,1]-sep_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==10){
-#     
-#     test_anomoly[i,1]<-test[i,1]-oct_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==11){
-#     
-#     test_anomoly[i,1]<-test[i,1]-nov_data_avg 
-#     
-#   }
-#   
-#   else if (month(test[i,2])==12){
-#     
-#     test_anomoly[i,1]<-test[i,1]-dec_data_avg 
-#     
-#   }
-#   
-#   else{
-#     
-#     print('Error')
-#   }
-#   
-# }
-# 
+
 ```
  
 Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
@@ -832,18 +620,144 @@ cor(sat.anom[,2], test_anomoly)
 
 cors = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i)],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
                         sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
 
 cors2 = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i)],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
                         rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
 
 
 ```
+## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+```{r}
 
+cor(rainf.anom[,2], test_anomoly)
+
+rainf.anom
+
+cor(sat.anom[,2], test_anomoly)
+
+cors = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
+  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
+}
+
+timeShiftCloudSAT = which.max(abs(cors))
+
+cors2 = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
+  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
+}
+
+timeShiftCloudRainf = which.max(abs(cors2))
+```
+## Timeshifting our data
+```{r}
+
+#enso.df
+
+maxshift = max(c(timeShiftWindRainf,
+                 timeShiftWindSAT,
+                 best.ts.substemp.rainf,
+                 timeShiftCloudSAT,
+                 timeShiftCloudRainf))
+
+n = nrow(enso.df)
+
+timeshiftedRainfDF = data.frame(rainf.sg = enso.df$rainf.sg[(1+maxshift):n],
+                                sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted
+                                substemp.pcf = enso.df$substemp.pcf[(1+(maxshift-best.ts.substemp.rainf)):(n-best.ts.substemp.rainf)],
+                                okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudRainf):(n-timeShiftCloudRainf)],
+                                wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindRainf):(n-timeShiftWindRainf)])
+
+                                
+timeshiftedSATDF = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
+                              sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted,
+                              substemp.pcf = enso.df$substemp.pcf[(1+maxshift):n],#not timeshifted
+                              okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudSAT):(n-timeShiftCloudSAT)],
+                              wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindSAT):(n-timeShiftWindSAT)])
+
+
+ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
+
+
+ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
+```
+## Buiilding a Neural Net
+```{r}
+
+library(parallel)
+library(neuralnet)
+
+rainFormula = (rainf.sg ~ sst.pcf+substemp.pcf+okla.pcf+wind.pcf)
+satFornula = (sat.sg ~ sst.pcf+substemp.pcf+okla.pcf+wind.pcf)
+
+train = timeshiftedRainfDF[1:100,]
+test = timeshiftedRainfDF[101:136,]
+
+train.st = data.frame(scale(train))
+
+means = colMeans(train); sds = apply(train,2,sd)
+
+test.st = scale(test,center=means,scale=sds)
+
+model = glm(formula=rainFormula,
+    data=train)
+
+preds = predict(model,test)
+
+df = data.frame(preds = preds,
+           obs = test$rainf.sg)
+
+
+#parallelize training of multiple models (initial weights are randomized)
+numCores = detectCores()
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','rainFormula','train.st'))
+nets = parLapply(cl,1:(12), function(i) {
+  net = neuralnet(formula=rainFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=5,
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=F)
+})
+stopCluster(cl)
+
+test.st <- data.frame(test.st)
+
+rsq.fn <- function (x, y) cor(x, y) ^ 2
+
+rsq.net = sapply(nets[1:(length(nets))], function(net) {
+  pred = predict(object=net,newdata=test.st)[,1]
+  rsq.fn(test.st$rainf.sg,pred)
+  
+})
+
+
+rsq.glm <- rsq1(test.st$rainf.sg,preds)
+
+```
