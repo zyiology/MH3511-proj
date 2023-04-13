@@ -18,8 +18,6 @@ library(lubridate)
 library(gridExtra)
 library(ncdf4)
 
-#change data path as necessary..
-#path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
 ```
 
 ## Reading Data (what data is this)
@@ -50,7 +48,7 @@ sat.ref <- sapply(1:12, function(m){
   avg.temp <- round(mean(sat.ref[which(month(sat.ref$month)==m),]$mean_temp),4)
   
 })
-sat.new <- sat[sat$month >= as.Date('2011-01-01'),]
+sat.new <- sat[sat$month >= as.Date('2011-01-01') & sat$month <= as.Date('2022-12-31'),]
 
 #calculating sat anomalies from 2011 onwards..
 sat.anom<- data.frame(month = sat.new$month,
@@ -84,7 +82,7 @@ rainf.ref <- sapply(1:12, function(m){
 })
 
 #find rainfall data period of interest, 2011 onwards..
-rainf.new <- rainf[rainf$month >= as.Date('2011-01-01'),]
+rainf.new <- rainf[rainf$month >= as.Date('2011-01-01') & rainf$month <= as.Date('2022-12-31'),]
 
 #caluclating rainfall anomalies from 2011..
 rainf.anom<- data.frame(month = rainf.new$month,
@@ -117,7 +115,7 @@ sst.ref <- sapply(1:12, function(m){
 })
 
 #sst range for 2011 onwards, data that matters
-sst.new<- sst[sst$YR >= 2011,]
+sst.new<- sst[sst$YR >= 2011 & sst$YR <= 2022,]
 
 # finding anomaly with fixed dates. assume data was with respect to first day of the month
 # note the data has anomaly values bur wrt to 1990-2020.
@@ -155,92 +153,96 @@ print(df_corr)
 ggplot(df_plot,aes(x=rainf_anom))+
   geom_point(aes(y=sst_anom,color='sst.rainf'))+
   scale_color_manual(values=c('sst.rainf'='pink'))+
-  ggtitle('Monthly SG rainfall anomaly againt SST anomaly from Jan 2011- Feb 2023')
+  ggtitle('Monthly SG rainfall anomaly againt SST anomaly from Jan 2011- Dec 2022')
 
 ggplot(df_plot,aes(x=sat_anom))+
   geom_point(aes(y=sst_anom,color='sst.sat'))+
   scale_color_manual(values=c('sst.sat'='lightblue'))+
-  ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Feb 2023')
+  ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Dec 2022')
 
 
 ```
 
 ## Reading Low level wind data
 
-```{r read_wind_data eval=FALSE}
+```{r read_wind_data}
 
-x = lapply(1:2, function(i) {
-  y = lapply(1:2, function(j) {
-    winddata = nc_open('data/wspd.mean.nc')
-  })
-})
+winddata = nc_open('data/wspd.mean.nc')
 
+#calculating baseline values from 1980-2010
 time = ncvar_get(winddata,"time") #data starts from 1800/01, end at 2023/01
 startMonth = (1980-1800)*12+1 #1980/01
-endMonth = (2010-1800)*12 #2009/12
+endMonth = (2011-1800)*12 #2010/12
 
 lat = ncvar_get(winddata,'lat')
 lon = ncvar_get(winddata,'lon')
 latIndices = which(lat<=5 & lat>=-5)
 lonIndices = which(lon<=240 & lon>=190)
 
-windarray = ncvar_get(winddata, 'wspd')
+#3D array, lat, lon, time dimensions
+windValues = ncvar_get(winddata, 'wspd')
 
 #get the mean of the wind values within the nino3.4 region
 ninoAreaMean = function(index) {
-  windslice = windarray[,,index]
+  windslice = windValues[,,index]
   ninoRegionData = windslice[lonIndices,latIndices]
   return(mean(ninoRegionData,na.rm=TRUE))
 }
 
+#get the means corresponding to reference period
 refPeriodValues = sapply(startMonth:endMonth, ninoAreaMean)
 
+#calculate a baseline temperature for each month based on the reference period
 monthlyRefMeans = sapply(1:12,function(i) {
   monthValues = refPeriodValues[seq(i,length(refPeriodValues),12)]
   return(mean(monthValues))
 })
 
-#calculating anomaly
-startMonth = (2010-1800)*12+1 #2010/01
+#calculating anomaly (temperature for a given month - corresponding baseline)
+startMonth = (2011-1800)*12+1 #2011/01
 endMonth = (2023-1800)*12 #2022/12
 periodValues = sapply(startMonth:endMonth, ninoAreaMean)
+periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2011))
 
-periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2010))
-
-
-#image(lon,rev(lat),a)
 ```
 
-plotting wind anomaly against sg
-```{r eval=FALSE}
+time shift for wind anomaly and sg sat anomaly
+```{r time_shift_wind_anomaly}
 
-cors = rep(0,11)
-for (i in -10:0) {
-  df_plot <- data.frame(windanomaly = periodAnomalies[1:(146+i)],
-                        sat_anom = sat.anom$anom[(-i+1):146],
-                        month = 1:(146+i))
-  cors[i+11]=cor(df_plot$windanomaly,df_plot$sat_anom)
+cors = rep(0,13)
+for (i in 0:12) {
+  windanomaly = periodAnomalies[1:(144-i)] #1:144 to 1:132
+  sat_anom = sat.anom$anom[(1+i):(144)] #1:144 to 13:144
+  cors[i]=cor(windanomaly,sat_anom)
 }
 
-cors2 = rep(0,11)
-for (i in 1:11) {
-  df_plot <- data.frame(windanomaly = periodAnomalies[i:(145+i)],
-                        sat_anom = sat.anom$anom[1:146],
-                        month = 1:(146))
-  cors2[i]=cor(df_plot$windanomaly,df_plot$sat_anom)
+corsDF = data.frame(cors = cors, x = 0:12)
+
+ggplot(corsDF) +
+  geom_line(aes(y=cors,x=x))
+
+#should use the wind data to predict SG temperature x months in the future
+#i.e. jan win data is used to predict x SG temp
+timeShiftWindSAT = which.max(abs(cors))
+
+```
+
+```{r}
+
+cors = rep(0,13)
+for (i in 0:12) {
+  windanomaly = periodAnomalies[1:(144-i)] #1:144 to 1:132
+  rainf_anom = rainf.anom$anom[(1+i):(144)] #1:144 to 13:144
+  cors[i]=cor(windanomaly,rainf_anom)
 }
 
-#scatter plots
-# ggplot(df_plot,aes(x=month))+
-#   geom_point(aes(y=windanomaly,color='sst.rainf'))+
-#   scale_color_manual(values=c('sst.rainf'='pink'))+
-#   ggtitle('Monthly SG rainfall anomaly againt SST anomaly from Jan 2011- Feb 2023')
+corsDF = data.frame(cors = cors, x = 0:12)
 
-ggplot(df_plot,aes(x=month))+
-  geom_line(aes(y=sat_anom,color='sst.sat'))+
-  geom_line(aes(y=windanomaly))+
-  scale_color_manual(values=c('sst.sat'='lightblue'))+
-  ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Feb 2023')
+ggplot(corsDF) +
+  geom_line(aes(y=cors,x=x))
+
+#same process as for sat
+timeShiftWindRainf = which.max(abs(cors))
 
 ```
 
@@ -299,6 +301,7 @@ substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
     #index 1:30 for the reference of 1980-2010.
     anom <- substemp.mean[r,c]-mean(substemp.mean[r,1:30])
     
+    
   })
   
 })
@@ -351,7 +354,7 @@ ggplot()+
 
 ```{r}
 
-nc_data <- nc_open("C:/Users/ancel/Downloads/olr.mon.mean.nc")
+nc_data <- nc_open("data/olr.mon.mean.nc")
 
 print (nc_data)
 
