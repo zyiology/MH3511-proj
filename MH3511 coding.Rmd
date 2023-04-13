@@ -18,6 +18,7 @@ library(lubridate)
 library(gridExtra)
 library(ncdf4)
 library(tibbletime)
+library(GGally)
 
 #change data path as necessary..
 #path <- '/Users/nicholaschan/Documents/GitHub/MH3511-proj/data'
@@ -26,7 +27,7 @@ library(tibbletime)
 ## Reading Data (what data is this)
 ```{r}
 
-data <- read.csv('C:/Users/ancel/Downloads/historical-daily-weather-records.csv')
+data <- read.csv('data/historical-daily-weather-records.csv')
 
 head(data)
 
@@ -39,7 +40,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data   
 ```{r}
 
-sat <- read.csv('C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
 
 sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
@@ -72,7 +73,7 @@ ggplot(sat) +
 ```{r}
 
 #reading rainfall data..
-rainf <- read.csv('C:/Users/ancel/Downloads/rainfall-monthly-total.csv')
+rainf <- read.csv('data/rainfall-monthly-total.csv')
 
 rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
@@ -121,7 +122,7 @@ sst.hist <- ggplot(data=sst.n34, aes(x=sst))+
   
 sst.hist #generally unimodal, normal dist.
 
-boxplot(sst.N3.4$sst, 
+boxplot(sst.n34$sst, 
         main = 'Pacific monthly SST data from Jan 1982 to Feb 2023',
         ylab = 'SST')
 
@@ -756,31 +757,6 @@ for (i in 1:nrow(test)){
 
 ```
 
-
-Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
-```{r}
-
-cor(rainf.anom[,2], test_anomoly[1:146,1])
-
-rainf.anom
-
-cor(sat.anom[,2], test_anomoly[1:146,1])
-
-cors = rep(0,11)
-for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(146+i),1],
-                        sat_anom = sat.anom$anom[(-i+1):146])
-  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
-}
-
-cors2 = rep(0,11)
-for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(146+i),1],
-                        rain_anom = rainf.anom$anom[(-i+1):146])
-  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
-}
-
-```
 Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
 ```{r}
 
@@ -798,6 +774,7 @@ for (i in -12:0) {
 }
 
 ```
+
 ## All Data, Pairs Plot (Not Time Shifted)
 ```{r message=FALSE, warning=FALSE}
 enso.df <- data.frame(month = sat.anom$month,
@@ -826,3 +803,30 @@ ggpairs(enso.df.nd,columns = 1:ncol(enso.df.nd),
               axis.text = element_text(size=7))
 
 ```
+
+## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+```{r}
+
+cor(rainf.anom[,2], test_anomoly[,1])
+
+rainf.anom
+
+cor(sat.anom[,2], test_anomoly[,1])
+
+cors = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i),1],
+                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
+  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
+}
+
+cors2 = rep(0,11)
+for (i in -12:0) {
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i),1],
+                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
+  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
+}
+
+
+```
+
