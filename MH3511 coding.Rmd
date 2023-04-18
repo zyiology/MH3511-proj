@@ -20,6 +20,7 @@ library(gridExtra)
 library(ncdf4)
 library(tibbletime)
 library(GGally)
+library(forecast)
 
 ```
 
@@ -146,6 +147,35 @@ rainf.anom<- data.frame(month = rainf.new$month,
 
 ```
 
+## sqrt of SG rainfall data
+```{r}
+
+rainfsqrt <- sqrt(rainf$total_rainfall)
+
+rainfsqrt_df <- data.frame(rainfsqrt, month=rainf$month)
+
+#getting reference range for rainfall..
+rainfsqrt.ref <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('1980-01-01') & rainfsqrt_df$month <= as.Date('2010-12-31'),]
+
+#calculate avg rainf/month in ref period to act as a baseline for anomalies..
+rainfsqrt.ref <- sapply(1:12, function(m){
+  avg.rainf <- round(mean(rainfsqrt.ref[which(month(rainfsqrt.ref$month)==m),]$rainfsqrt),4)
+})
+
+#find rainfall data period of interest, 2011 onwards..
+rainfsqrt.new <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('2011-01-01') & rainfsqrt_df$month <= as.Date('2022-12-31'),]
+
+#caluclating rainfall anomalies from 2011..
+rainfsqrt.anom<- data.frame(month = rainfsqrt.new$month,
+                        anom = sapply(1:nrow(rainfsqrt.new),function(i){
+                        
+                        #rainfall on a specific month - rainfall in ref period of the same month
+                        anomaly <- rainfsqrt.new$rainfsqrt[i]-rainfsqrt.ref[month(rainfsqrt.new$month[i])]
+                          
+                        }))
+
+```
+
 ```{r}
 
 ggplot(rainf) + 
@@ -169,28 +199,6 @@ ggplot(rainf)+
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
 
-ggplot(rainf)+
-  geom_boxplot(aes(y=log(total_rainfall)), width = 0.1) + 
-  geom_half_point(aes(y = log(total_rainfall)), side ="l",range_scale =0.3)+
-  labs(y = 'log(Rainfall (mm))') +
-  theme_minimal() +
-  ggtitle("Raincloud plot showing the distribution of \nData points for log of Total monthly rainfall")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-ggplot(rainf)+
-  geom_boxplot(aes(y=sqrt(total_rainfall)), width = 0.1) + 
-  geom_half_point(aes(y = sqrt(total_rainfall)), side ="l",range_scale =0.3)+
-  labs(y = 'log(Rainfall (mm))') +
-  theme_minimal() +
-  ggtitle("Raincloud plot showing the distribution of \nData points for log of Total monthly rainfall")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-
-
 ```
 
 ```{r}
@@ -205,37 +213,12 @@ ggplot(rainf)+
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
 
-ggplot(rainf)+
-  geom_histogram(aes(x=log(total_rainfall)),bins = opbins_rainf)+
-  labs(x='Rainfall (mm)', y = 'Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points for log ofTotal monthly rainfall")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-ggplot(rainf)+
-  geom_histogram(aes(x=sqrt(total_rainfall)),bins = opbins_rainf)+
-  labs(x='Rainfall (mm)', y = 'Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points for square root of Total monthly rainfall")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-
 ```
 
 ```{r}
 
 qqnorm(rainf$total_rainfall, pch = 1, frame = FALSE)
 qqline(rainf$total_rainfall, col = "steelblue", lwd = 2)
-
-qqnorm(log(rainf$total_rainfall), pch = 1, frame = FALSE)
-qqline(log(rainf$total_rainfall), col = "steelblue", lwd = 2)
-
-qqnorm(sqrt(rainf$total_rainfall), pch = 1, frame = FALSE)
-qqline(sqrt(rainf$total_rainfall), col = "steelblue", lwd = 2)
 
 
 ```
@@ -490,7 +473,7 @@ months <- 01:12
 
 years <- 1980:2022
 
-substemp.folder <- 'data/subsurfacetempfiles/'
+substemp.folder <- 'C:/Users/ancel/Downloads/subsurfacetempfiles/subsurfacetempfiles/'
 
 substemp.file <- paste0(substemp.folder, 'EN.4.2.2.f.analysis.g10.')
 
@@ -531,13 +514,15 @@ substemp.all.df <- data.frame(substemp = c(substemp.all))
 
 substemp.all.df <- substemp.all.df - 273.15
 
-substemp.hist <- ggplot(data=substemp.all.df, aes(x=substemp))+
-  geom_histogram(color='black',bins=100)+
+substemp.all.df <- data.frame(substemp=na.interp(substemp.all.df)) #interp na values
+
+opbins_sub <- 1 + 3.322 * log(nrow(substemp.all.df))
+
+ggplot(data=substemp.all.df, aes(x=substemp))+
+  geom_histogram(color='black',bins=opbins_sub)+
   xlab('Sub Surf Temp')+
   ylab('Frequency')+
   ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
-  
-substemp.hist #generally unimodal, normal dist.
 
 boxplot(substemp.all.df$substemp, 
         main = 'Pacific monthly Sub surface temp data from Jan 1980 to Feb 2023',
@@ -727,6 +712,7 @@ ggplot(lat)+
 ```
 
 ```{r}
+
 ggplot(lat)+
   geom_boxplot(aes(y=pacific_avg), width = 0.1) + 
   geom_half_point(aes(y = pacific_avg), side ="l",range_scale =0.3)+
@@ -737,55 +723,10 @@ ggplot(lat)+
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
 
-ggplot(lat)+
-  geom_boxplot(aes(y=log(pacific_avg)), width = 0.1) + 
-  geom_half_point(aes(y = log(pacific_avg)), side ="l",range_scale =0.3)+
-  labs(y = 'OLR'~W/m^2) +
-  theme_minimal() +
-  ggtitle("Raincloud plot showing the distribution of \nData points of log of OLR")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-ggplot(lat)+
-  geom_boxplot(aes(y=sqrt(pacific_avg)), width = 0.1) + 
-  geom_half_point(aes(y = sqrt(pacific_avg)), side ="l",range_scale =0.3)+
-  labs(y = 'OLR'~W/m^2) +
-  theme_minimal() +
-  ggtitle("Raincloud plot showing the distribution of \nData points of squareroot of OLR")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-#min-max normalization
-
-cloud_min_max_norm <- (lat$pacific_avg-min(lat$pacific_avg))/(max(lat$pacific_avg)-min(lat$pacific_avg))
-
-cloud_mmn_df <- data.frame(cloud_min_max_norm, month=lat$datetime)
-
-ggplot(cloud_mmn_df)+
-  geom_boxplot(aes(y=cloud_min_max_norm), width = 0.1) + 
-  geom_half_point(aes(y = cloud_min_max_norm), side ="l",range_scale =0.3)+
-  labs(y = 'Norm OLR') +
-  theme_minimal() +
-  ggtitle("Raincloud plot showing the distribution of \nData points for normalized OLR")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-ggplot(cloud_mmn_df)+
-  geom_boxplot(aes(y=sqrt(cloud_min_max_norm)), width = 0.1) + 
-  geom_half_point(aes(y = sqrt(cloud_min_max_norm)), side ="l",range_scale =0.3)+
-  labs(y = 'sqrt(Norm OLR)') +
-  theme_minimal() +
-  ggtitle("Raincloud plot showing the distribution of \nData points for squareroot of the normalized OLR")+ 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
 ```
 
 ```{r}
+
 opbins_lat <- 1 + 3.322 * log(nrow(lat))
 
 ggplot(lat)+
@@ -794,51 +735,12 @@ ggplot(lat)+
   theme_minimal() +
   ggtitle("Histogram showing the distribution of \nData points of OLR")
 
-ggplot(lat)+
-  geom_histogram(aes(x=log(pacific_avg)),bins = opbins_lat)+
-  labs(x = 'OLR'~W/m^2, y='Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points of log of OLR")
-
-ggplot(lat)+
-  geom_histogram(aes(x=sqrt(pacific_avg)),bins = opbins_lat)+
-  labs(x = 'OLR'~W/m^2, y='Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points of squareroot of OLR")
-
-ggplot(cloud_mmn_df)+
-  geom_histogram(aes(x=cloud_min_max_norm),bins = opbins_lat)+
-  labs(x = 'Norm OLR', y='Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points of normalized OLR")
-
-ggplot(cloud_mmn_df)+
-  geom_histogram(aes(x=sqrt(cloud_min_max_norm)),bins = opbins_lat)+
-  labs(x = 'OLR'~W/m^2, y='Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points of squareroot of OLR")
-
-
-
 ```
 
 ```{r}
+
 qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
 qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
-
-qqnorm(log(lat$pacific_avg), pch = 1, frame = FALSE)
-qqline(log(lat$pacific_avg), col = "steelblue", lwd = 2)
-
-qqnorm(sqrt(lat$pacific_avg), pch = 1, frame = FALSE)
-qqline(sqrt(lat$pacific_avg), col = "steelblue", lwd = 2)
-
-qqnorm(cloud_mmn_df$cloud_min_max_norm, pch = 1, frame = FALSE)
-qqline(cloud_mmn_df$cloud_min_max_norm, col = "steelblue", lwd = 2)
-
-qqnorm(sqrt(cloud_mmn_df$cloud_min_max_norm), pch = 1, frame = FALSE)
-qqline(sqrt(cloud_mmn_df$cloud_min_max_norm), col = "steelblue", lwd = 2)
-
-
 
 ```
 From the boxplot, histogram, and qqplot, we can observe a distinct right skewed distribution of the datapoints, indicating the presence of very large outliers. We can consider excluding these points or subjecting the dataset to a log, sqrt, or normalize transformation. 
@@ -857,31 +759,12 @@ test <- lat[385:528,]
 test_anomoly = test[,1] - rep(monthly_means,12)
  
 ```
- 
-Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
-
-```{r}
-
-cor(rainf.anom[,2], test_anomoly)
-
-rainf.anom
-
-cor(sat.anom[,2], test_anomoly)
-
-cors = rep(0,11)
-for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(144+i)],
-                        sat_anom = sat.anom$anom[(-i+1):144])
-  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
-}
-
-```
 
 ## All Data, Pairs Plot (Not Time Shifted)
 ```{r message=FALSE, warning=FALSE}
-enso.df <- data.frame(month = sat.anom$month,
-                      sat.sg=sat.anom$anom,
-                      rainf.sg=rainf.anom$anom,
+enso.df <- data.frame(month = sat.anom$month, 
+                      sat.sg=sat.anom$anom, # Normally distributed
+                      rainf.sg=rainf.anom$anom, #
                       sst.pcf=sst.anom$anom,
                       substemp.pcf=substemp.anom.vec,
                       okla.pcf=test_anomoly,
@@ -911,20 +794,19 @@ ggpairs(enso.df.nd,columns = 1:ncol(enso.df.nd),
 
 cor(rainf.anom[,2], test_anomoly)
 
-rainf.anom
-
 cor(sat.anom[,2], test_anomoly)
 
 cors = rep(0,11)
+
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i)],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
                         sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
 
 cors2 = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(nrow(test_anomoly)+i)],
+  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
                         rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
