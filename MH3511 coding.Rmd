@@ -289,9 +289,9 @@ sst.all <- read.table('data/sstoi.indices.txt',header=T)
 sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
                         sst = sst$NINO3.4)
 
-sst.n34 <- sst.n34[!duplicated(sst.n34$month),]
+sst.all <- sst.n34[!duplicated(sst.n34$month),]
 
-sst.hist <- ggplot(data=sst.n34, aes(x=sst))+
+sst.hist <- ggplot(data=sst.all, aes(x=sst))+
   geom_histogram(color='black',bins=50)+
   xlab('SST')+
   ylab('Frequency')+
@@ -299,28 +299,28 @@ sst.hist <- ggplot(data=sst.n34, aes(x=sst))+
   
 sst.hist #generally unimodal, normal dist.
 
-boxplot(sst.n34$sst, 
+boxplot(sst.all$sst, 
         main = 'Pacific monthly SST data from Jan 1982 to Feb 2023',
         ylab = 'SST')
 
-sst.ts <- ggplot(sst.n34, aes(x=month,y=sst))+
+sst.ts <- ggplot(sst.all, aes(x=month,y=sst))+
   geom_path()+
   ggtitle('Pacific monthly SST Time Series from 1982 to 2023')+
   xlab('Time')
 
 sst.ts #data looks sound
 
-ggplot(sst.n34) + 
+ggplot(sst.all) + 
   geom_point(aes(x=month, y = sst)) + 
   geom_line(aes(x=month, y = sst))
 
-ggplot(sst.n34)+
+ggplot(sst.all)+
   geom_boxplot(aes(y=sst), width = 0.1) + 
   geom_half_point(aes(y = sst), side ="l",range_scale =0.3)
 
-opbins_sst <- 1 + 3.322 * log(nrow(sst.n34))
+opbins_sst <- 1 + 3.322 * log(nrow(sst.all))
 
-ggplot(sst.n34)+
+ggplot(sst.all)+
   geom_histogram(aes(x=sst),bins = opbins_sst)
 
 #qqnorm(sst.n34$sst, pch = 1, frame = FALSE)
@@ -341,29 +341,20 @@ kpss.test(sst.n34$sst) #if p < 0.05, reject, not stationary
 ## Finding SST Anomaly Data in the Pacific
 ```{r}
 #finding ref range 1980-2010
-sst.ref <- sst[sst$YR >= 1980 & sst$YR <= 2010,]
+sst.ref <- sst.all[sst.all$month >= '1982-01-01' & sst.all$month < '2011-01-01',]
+
+sst.studyVal <- sst.all[sst.all$month >= '2011-01-01' & sst.all$month < '2023-01-01',2]
+
+sst.refVal <- sst.ref[,2]
 
 #sst baseline per month 
-sst.ref <- sapply(1:12, function(m){
-  avg.sst <- round(mean(sst.ref[which(month(sst.ref$MON)==m),]$NINO3.4),4)
+sst.baselines <- sapply(1:12, function(m){
+  baseline <- mean(sst.ref[which(month(sst.ref$month)==m),2])
 })
 
-#sst range for 2011 onwards, data that matters
-sst.new<- sst[sst$YR >= 2011 & sst$YR <= 2022,]
-
 # finding anomaly with fixed dates. assume data was with respect to first day of the month
-# note the data has anomaly values bur wrt to 1990-2020.
-sst.anom<- data.frame(month = as.Date(paste(sst.new$YR,sst.new$MON,'01',sep='-')),
-                        anom = sapply(1:nrow(sst.new),function(i){
-                        
-                        #sst on a specific month - sst in ref period of the same month
-                        anomaly <- sst.new$NINO3.4[i]-sst.ref[sst.new$MON[i]]
-                          
-                        }))
-
-#remove duplicate data
-dupes <- duplicated(sst.anom$month)
-sst.anom <- subset(sst.anom,!dupes)
+# note the data has anomaly values but wrt to 1990-2020. So we calc our own
+sst.studyAnom <- sst.studyVal - rep(sst.baselines,(144/12))
   
 ```
 
@@ -406,7 +397,7 @@ corr.ts.sat.sst <- sapply(1:12,function(i){
 corr.ts.sat.sst.df <- data.frame(month = corr.ts.sat.sst[1,],
                               corr.sst.sat = corr.ts.sat.sst[2,])
 
-best.ts.sst.sat <- which.max(abs(corr.ts.sat.sst.df$corr.sst.sat)) -1
+sst.timeshift.sat <- which.max(abs(corr.ts.sat.sst.df$corr.sst.sat)) -1
 
 # timeshifting to find best correlation for sst & sg rainf, consider only forward shift since we using pacific data to predict sg data
 corr.ts.rainf.sst <- sapply(1:12,function(i){
@@ -421,7 +412,7 @@ corr.ts.rainf.sst <- sapply(1:12,function(i){
 corr.ts.rainf.sst.df <- data.frame(month = corr.ts.rainf.sst[1,],
                               corr.sst.rainf = corr.ts.rainf.sst[2,])
 
-best.ts.sst.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
+sst.timeshift.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
 
 ```
 
@@ -554,7 +545,7 @@ wind.timeshift.rainf = which.max(abs(cors))
 
 months <- 01:12
 
-years <- 1980:2022
+years <- 1982:2022
 
 substemp.folder <- 'data/subsurfacetempfiles/'
 
@@ -577,50 +568,52 @@ substemp <- lapply(1:length(years),function(i){
   
 })
 
-#finding the mean temp at each month and each year
-substemp.all <- sapply(1:length(substemp),function(j){
+#finding the temp at each month and each year
+substemp.all <- lapply(1:length(substemp),function(j){
   
-  monthly <- sapply(1:length(months),function(n){
+  monthly <- lapply(1:length(months),function(n){
     
     #finding all the temperature data
     data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
     
-    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
-    all.temp <- data.temp[190:240,78:88,]
+    data.temp <- zoo::na.approx(data.temp)
+    
+    data.temp <- data.temp - 273.15
+    
+    #monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    all.temp <- data.temp[190:240,78:88]
     #temp <- data.temp[190:240,78:88,]
-  
-})
+    
+    })
     
 })
 
-substemp.all.df <- data.frame(substemp = c(substemp.all)) #561924 NA values
+substemp.all <- unlist(substemp.all,recursive=F)
 
-substemp.all.df <- substemp.all.df - 273.15
+substemp.all.plot <- unlist(substemp.all) #561924 NA values
 
-substemp.all.df <- data.frame(substemp=na.interp(substemp.all.df)) #interp na values
+#plotting timeseries for substemp
+substemp.ts.plot <- data.frame(month = seq(as.Date('1982-01-01'),
+                                           as.Date('2022-12-01'),
+                                           by='month'),
+                               substemp.all = substemp.all.plot)
 
+substemp.ts <- ggplot(substemp.ts.plot)+
+               geom_line(aes(x=(1:nrow(substemp.ts.plot)),y=substemp.all),linewidth=0.1)
 
-#opbins_sub <- 1 + 3.322 * log(nrow(substemp.all.df))
+substemp.ts
 
-#ggplot(data=substemp.all.df, aes(x=substemp))+
-#  geom_histogram(color='black',bins=opbins_sub)+
-#  xlab('Sub Surf Temp')+
-#  ylab('Frequency')+
-#  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
+substemp.hist <- ggplot(data=data.frame(substemp.all.plot),aes(x=substemp.all.plot))+
+                 geom_histogram(color='black', bins=50)+
+                 ggtitle('Monthly Mean Sub Surf Temp in Pacific (1982-2022)')+
+                 xlab('Mean Temp (deg C)')
 
-rm(substemp.all) #remove substemp.all to save space
+substemp.hist
 
-substemp.hist <- ggplot(data=substemp.all.df, aes(x=substemp))+
-  geom_histogram(color='black',bins=100)+
-  xlab('Sub Surf Temp')+
-  ylab('Frequency')+
-  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
-  
-substemp.hist #Super weird shape
+substemp.box <- boxplot(substemp.all.plot,
+                             main='Monthly Mean Sub Surf Temp in Pacific (1982-2022)',
+                             ylab = 'Mean Temp (deg C)')
 
-boxplot(substemp.all.df$substemp, 
-        main = 'Pacific monthly Sub surface temp data from Jan 1980 to Feb 2023',
-        ylab = 'Sub Surf Temp')
 
 #finding the mean temp at each month and each year
 substemp.mean <- sapply(1:length(substemp),function(j){
@@ -630,52 +623,47 @@ substemp.mean <- sapply(1:length(substemp),function(j){
     #finding all the temperature data
     data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
     
-    data.temp <- data.temp[190:240,78:88,]
+    data.temp <- zoo::na.approx(data.temp)
     
-    data.temp.interp <- zoo::na.approx(data.temp)
+    data.temp <- data.temp - 273.15
     
-    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
-    month.temp <- mean(data.temp.interp)
+    #monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    all.temp <- mean(data.temp[190:240,78:88])
     #temp <- data.temp[190:240,78:88,]
-  
-})
+    
+    })
     
 })
 
 rm(substemp) #remove substemp to save space
 
-#convert celsius
-substemp.mean <- substemp.mean-273.15
+substemp.refVal <- substemp.mean[,1:(2010-1982+1)] #29 columns for 29 years (1982-2010)
 
-substemp.mean <- c(substemp.mean)
+colnames(substemp.refVal) <- seq(1982,2010)
 
-#calculate a baseline temperature for each month based on the reference period
-substempRefStartIndex = 1; substempRefEndIndex = (2011-1980)*12
-substempMeansRef = sapply(1:12,function(i) {
-  monthValues = substemp.mean[seq(i,(2011-1980)*12,12)]
-  return(mean(monthValues))
+substemp.studyVal <- substemp.mean[,(2011-1982+1):ncol(substemp.mean)] #29 columns for 29 years (1982-2010)
+
+colnames(substemp.studyVal) <- seq(2011,2022)
+
+#calc baseline from refVal
+substemp.baselines <- sapply(1:nrow(substemp.refVal),function(i){
+  monthly.mean <- mean(substemp.refVal[i,])
 })
 
-substemp.anom = substemp.mean[(substempRefEndIndex+1):length(substemp.mean)] - rep(substempMeansRef,(2023-2011))
-  
+#calc studyAnom
+substemp.studyAnom <- substemp.studyVal-rep(substemp.baselines,(2022-2011+1))
 
-# previous code - replaced by above
-#
-# # start from 32 because that corresponds to 2011. Columns are years
-# substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
-#   
-#   substemp.ref <- sapply(1:nrow(substemp.mean),function(r){
-#     
-#     #index 1:30 for the reference of 1980-2010.
-#     anom <- substemp.mean[r,c]-mean(substemp.mean[r,1:30])
-#     
-#     
-#   })
-#   
-# })
+substemp.histAnom <- ggplot(data=data.frame(x=c(substemp.studyAnom)),
+                            aes(x=x))+
+                 geom_histogram(color='black', bins=50)+
+                 ggtitle('Monthly Sub Surf Temp Anomaly in Pacific (2011-2022)')+
+                 xlab('Temp Anomalies (deg C)')
 
-#turn matrix to vector for ease of access
-substemp.anom.vec <- as.vector(substemp.anom)
+substemp.histAnom
+
+substemp.boxAnom <- boxplot(c(substemp.studyAnom),
+                             main='Monthly Sub Surf Temp Anomaly in Pacific (2011-2022)',
+                             ylab = 'Temp Anomalies (deg C)')
 
 adf.test(substemp.anom.vec) #if p < 0.05, reject, stationary
 kpss.test(substemp.anom.vec) #if p < 0.05, reject, not stationary
@@ -742,7 +730,7 @@ corr.ts.sat.substemp <- sapply(1:12,function(i){
 corr.ts.sat.substemp.df <- data.frame(month = corr.ts.sat.substemp[1,],
                               corr.substemp.sat = corr.ts.sat.substemp[2,])
 
-best.ts.substemp.sat <- which.max(abs(corr.ts.sat.substemp.df$corr.substemp.sat))-1
+substemp.timeshift.sat <- which.max(abs(corr.ts.sat.substemp.df$corr.substemp.sat))-1
 
 # timeshifting to find best correlation for substemp & sg rainf, consider only forward shift since we using pacific data to predict sg data
 corr.ts.rainf.substemp <- sapply(1:12,function(i){
@@ -757,18 +745,18 @@ corr.ts.rainf.substemp <- sapply(1:12,function(i){
 corr.ts.rainf.substemp.df <- data.frame(month = corr.ts.rainf.substemp[1,],
                               corr.substemp.rainf = corr.ts.rainf.substemp[2,])
 
-best.ts.substemp.rainf <- which.max(abs(corr.ts.rainf.substemp.df$corr.substemp.rainf))
+substemp.timeshift.rainf <- which.max(abs(corr.ts.rainf.substemp.df$corr.substemp.rainf))
 ```
 
 ```{r}
 
 nc_data <- nc_open("data/olr-monthly_v02r07_197901_202303.nc")
 
-print (nc_data)
+#print (nc_data)
 
-attributes(nc_data$var)
+#attributes(nc_data$var)
 
-attributes(nc_data$dim)
+#attributes(nc_data$dim)
 
 lat <- ncvar_get(nc_data, "lat")
 
@@ -799,36 +787,87 @@ cloudiness[cloudiness==fillvalue$value] <- NA
 # Convert the number of hours to POSIXct format, specifying the origin as "1800-01-01"
 datetime <- as.Date(time, origin="1979-01-01")
 
-id.cloud <- which(datetime >= '1982-01-01' & datetime < '2022-01-1')
-cloud.data <- cloudiness[1,1,id.cloud]
-
 lat_range <- c(-5, 5)
 lon_range <- c(190, 240)
 
 lat_idx <- which(lat >= lat_range[1] & lat <= lat_range[2])
 lon_idx <- which(lon >= lon_range[1] & lon <= lon_range[2])
 
-cloud_data <- cloudiness[lon_idx,lat_idx,]
+id.all <- which(datetime >= '1982-01-01' & datetime < '2023-01-1')
+okla.all <- cloudiness[lon_idx,lat_idx,id.all]
 
-lat_1 <- data.frame(t(cloud_data[1,,]), datetime)
-
-ggplot(lat_1)+
-  geom_point(aes(x=datetime, y=X1))+
-  geom_line (aes(x=datetime, y=X1))
-
-pacific_avg <- sapply(1:531, function(a){
-  year_avg <- mean(cloudiness[,,a])
+okla.all.mean <- sapply(1:dim(okla.all)[3],function(i){
+  val <- mean(okla.all[,,i])
 })
 
-lat <- data.frame(pacific_avg, datetime)
+okla.all.mean <- data.frame(okla = okla.all.mean,
+                            month = seq(as.Date('1982-01-01'),
+                                         as.Date('2022-12-01'),
+                                         by='month'))
+colnames(okla.all.mean) <- c('okla','month')
+
+# plotting hist and box for okla values
+okla.hist <- ggplot(data=data.frame(x=c(okla.all)),aes(x=x))+
+  geom_histogram(color='black',bins=50)+
+  ggtitle('Monthly OLR in the pacific (1980-2022)')
+okla.hist
+
+okla.box <- boxplot(c(okla.all),
+                    main='Monthly OLR in the Pacific (1980-2022)',
+                    xlab = 'OLR')
+
+id.ref <- which(datetime >= '1982-01-01' & datetime < '2011-01-1')
+okla.refVal <- sapply(1:(length(id.ref)/12),function(i){
+  monthly <- sapply(1:12,function(j){
+    val <- mean(cloudiness[lon_idx,lat_idx,i*j])
+  })
+})
+
+id.study <- which(datetime >= '2011-01-01' & datetime < '2023-01-1')
+okla.studyVal <- sapply(1:length(id.study),function(i){
+  val <- mean(cloudiness[lon_idx,lat_idx,i])
+})
+
+#get baseline values
+okla.baselines <- sapply(1:12,function(i){
+  val <- mean(okla.refVal[i,])
+})
+
+#get anom values
+okla.studyAnom <- okla.studyVal - rep(okla.baselines,144/12)
+
+#plotting hist and box of okla anomalies
+okla.histAnom <- ggplot(data=data.frame(okla.studyAnom),aes(x=okla.studyAnom))+
+  geom_histogram(color='black',bins=50)+
+  ggtitle('Monthly OLR anomaly in the pacific (1980-2022)')+
+  xlab('OLR Anomalies')
+okla.histAnom
+
+okla.boxAnom <- boxplot(c(okla.all),
+                    main='Monthly OLR anomaly in the Pacific (1980-2022)',
+                    xlab = 'OLR Anomalies')
+
+# cloud_data <- cloudiness[lon_idx,lat_idx,]
+# 
+# lat_1 <- data.frame(t(cloud_data[1,,]), datetime)
+# 
+# ggplot(lat_1)+
+#   geom_point(aes(x=datetime, y=X1))+
+#   geom_line (aes(x=datetime, y=X1))
+# 
+# pacific_avg <- sapply(1:531, function(a){
+#   year_avg <- mean(cloudiness[,,a])
+# })
+# 
+# lat <- data.frame(pacific_avg, datetime)
 
 ```
 
 ```{r}
 
-ggplot(lat)+
-  geom_point(aes(x=datetime, y=pacific_avg))+
-  geom_line (aes(x=datetime, y=pacific_avg))+
+ggplot(okla.all.mean)+
+  geom_point(aes(x=month, y=okla))+
+  geom_line (aes(x=month, y=okla))+
   labs(x= 'Time (Years)', y = 'OLR'~W/m^2) +
   theme_minimal() +
   ggtitle("Plot showing OLR against Time")
@@ -847,9 +886,9 @@ kpss.test(lat$pacific_avg) #if p < 0.05, reject, not stationary
 
 ```{r}
 
-ggplot(lat)+
-  geom_boxplot(aes(y=pacific_avg), width = 0.1) + 
-  geom_half_point(aes(y = pacific_avg), side ="l",range_scale =0.3)+
+ggplot(okla.all.mean)+
+  geom_boxplot(aes(y=okla), width = 0.1) + 
+  geom_half_point(aes(y = okla), side ="l",range_scale =0.3)+
   labs(y = 'OLR'~W/m^2) +
   theme_minimal() +
   ggtitle("Raincloud plot showing the distribution of \nData points of OLR")+ 
@@ -862,33 +901,35 @@ ggplot(lat)+
 
 ```{r}
 
-opbins_lat <- 1 + 3.322 * log(nrow(lat))
-
-
-test <- lat[385:528,]
-
-ggplot(lat)+
-  geom_histogram(aes(x=pacific_avg),bins = opbins_lat)+
-  labs(x = 'OLR'~W/m^2, y='Frequency') +
-  theme_minimal() +
-  ggtitle("Histogram showing the distribution of \nData points of OLR")
+# opbins_lat <- 1 + 3.322 * log(nrow(lat))
+# 
+# 
+# test <- lat[385:528,]
+# 
+# ggplot(lat)+
+#   geom_histogram(aes(x=pacific_avg),bins = 50)+
+#   labs(x = 'OLR'~W/m^2, y='Frequency') +
+#   theme_minimal() +
+#   ggtitle("Histogram showing the distribution of \nData points of OLR")
 
 ```
 
 ```{r}
 
 
-#qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
-#qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
-reference <- lat[13:384,]
-
-monthly_means = sapply(1:12, function(i) {
-  mean(reference[seq(i,nrow(reference),12),1])
-})
-
-test <- lat[385:528,]
-
-test_anomoly = test[,1] - rep(monthly_means,12)
+# #qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
+# #qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
+# reference <- lat[13:384,]
+# 
+# monthly_means = sapply(1:12, function(i) {
+#   mean(reference[seq(i,nrow(reference),12),1])
+# })
+# 
+# test <- lat[385:528,]
+# 
+# test_anomoly = test[,1] - rep(monthly_means,12)
+# 
+# hist(test_anomoly)
 
 
 ```
@@ -1015,7 +1056,7 @@ for (i in -12:0) {
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
 
-timeShiftCloudSAT = which.max(abs(cors))
+okla.timeshift.sat = which.max(abs(cors))
 
 cors2 = rep(0,11)
 for (i in -12:0) {
@@ -1024,7 +1065,7 @@ for (i in -12:0) {
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
 
-timeShiftCloudRainf = which.max(abs(cors2))
+okla.timeshift.rainf = which.max(abs(cors2))
 
 ```
 ## Timeshifting our data
@@ -1033,29 +1074,29 @@ timeShiftCloudRainf = which.max(abs(cors2))
 
 #enso.df
 
-maxshift = max(c(timeShiftWindRainf,
-                 timeShiftWindSAT,
-                 best.ts.substemp.rainf,
+maxshift = max(c(wind.timeshift.rainf,
+                 wind.timeshift.sat,
+                 substemp.timeshift.rainf,
                  #best.ts.substemp.sat,
-                 timeShiftCloudSAT,
-                 timeShiftCloudRainf))
+                 okla.timeshift.sat,
+                 okla.timeshift.rainf))
 
 n = nrow(enso.df)
 
-timeshiftedRainfDF = data.frame(rainf.sg = enso.df$rainf.sg[(1+maxshift):n],
+rainf.timeshift.df = data.frame(rainf.sg = enso.df$rainf.sg[(1+maxshift):n],
                                 sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted
                                 substemp.pcf = enso.df$substemp.pcf[(1+(maxshift-best.ts.substemp.rainf)):(n-best.ts.substemp.rainf)],
-                                okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudRainf):(n-timeShiftCloudRainf)],
-                                wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindRainf):(n-timeShiftWindRainf)])
+                                okla.pcf = enso.df$okla.pcf[(1+maxshift-okla.timeshift.rainf):(n-okla.timeshift.rainf)],
+                                wind.pcf = enso.df$wind.pcf[(1+maxshift-wind.timeshift.rainf):(n-wind.timeshift.rainf)])
 
                                 
-timeshiftedSATDF = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
+sat.timeshift.df = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
                               sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted,
                               substemp.pcf = enso.df$substemp.pcf[(1+maxshift):n],#not timeshifted
-                              okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudSAT):(n-timeShiftCloudSAT)],
-                              wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindSAT):(n-timeShiftWindSAT)])
-
-ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
+                              okla.pcf = enso.df$okla.pcf[(1+maxshift-okla.timeshift.sat):(n-okla.timeshift.sat)],
+                              wind.pcf = enso.df$wind.pcf[(1+maxshift-wind.timeshift.sat):(n-wind.timeshift.sat)])
+                              
+ggpairs(sat.timeshift.df,columns = 1:ncol(sat.timeshift.df),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
         lower = list(continuous = wrap(lowerFn, method='lm')),
         diag = list(continuous = wrap('barDiag',color='black',bins=25)),
@@ -1064,7 +1105,7 @@ ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
               axis.text = element_text(size=7))
 
 
-ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
+ggpairs(rainf.timeshift.df,columns = 1:ncol(rainf.timeshift.df),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
         lower = list(continuous = wrap(lowerFn, method='lm')),
         diag = list(continuous = wrap('barDiag',color='black',bins=25)),
@@ -1072,7 +1113,7 @@ ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
         theme(axis.text.x = element_text(angle=90),
               axis.text = element_text(size=7))
 
-ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
+ggpairs(sat.timeshift.df,columns = 1:ncol(sat.timeshift.df),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
         lower = list(continuous = wrap(lowerFn, method='lm')),
         diag = list(continuous = wrap('barDiag',color='black',bins=25)),
@@ -1081,7 +1122,7 @@ ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
               axis.text = element_text(size=7))
 
 
-ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
+ggpairs(rainf.timeshift.df,columns = 1:ncol(rainf.timeshift.df),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
         lower = list(continuous = wrap(lowerFn, method='lm')),
         diag = list(continuous = wrap('barDiag',color='black',bins=25)),
@@ -1100,8 +1141,8 @@ satFornula = (sat.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
 
 testIndices = sample(1:136,30)
 
-train = timeshiftedRainfDF[-testIndices,]
-test = timeshiftedRainfDF[testIndices,]
+train = rainf.timeshift.df[-testIndices,]
+test = rainf.timeshift.df[testIndices,]
 
 train.st = data.frame(scale(train))
 
