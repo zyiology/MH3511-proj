@@ -54,7 +54,7 @@ library(caret)
 
 library(tseries)
 library(forecast)
-library(pracma)
+library(zoo)
 library(car)
 ```
 
@@ -555,7 +555,7 @@ timeShiftWindRainf = which.max(abs(cors))
 
 months <- 01:12
 
-years <- 1980:2022
+years <- 1982:2022
 
 substemp.folder <- 'data/subsurfacetempfiles/'
 
@@ -578,7 +578,7 @@ substemp <- lapply(1:length(years),function(i){
   
 })
 
-#finding the mean temp at each month and each year
+#finding the temp at each month and each year
 substemp.all <- sapply(1:length(substemp),function(j){
   
   monthly <- sapply(1:length(months),function(n){
@@ -586,7 +586,9 @@ substemp.all <- sapply(1:length(substemp),function(j){
     #finding all the temperature data
     data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
     
-    #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
+    data.temp <- zoo:na.approx(data.temp)
+    
+    #monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
     all.temp <- data.temp[190:240,78:88,]
     #temp <- data.temp[190:240,78:88,]
   
@@ -594,34 +596,17 @@ substemp.all <- sapply(1:length(substemp),function(j){
     
 })
 
-substemp.all.df <- data.frame(substemp = c(substemp.all)) #561924 NA values
+substemp.all <- substemp.all - 273.15
 
-substemp.all.df <- substemp.all.df - 273.15
+substemp.all.plot <- c(substemp.all) #561924 NA values
 
-substemp.all.df <- data.frame(substemp=na.interp(substemp.all.df)) #interp na values
+substemp.hist <- hist(substemp.all.plot,
+                           main='Monthly Mean Sub Surf Temp in the Pacific (1982-2022)',
+                           xlab = 'Mean Temp (deg C)')
 
-
-#opbins_sub <- 1 + 3.322 * log(nrow(substemp.all.df))
-
-#ggplot(data=substemp.all.df, aes(x=substemp))+
-#  geom_histogram(color='black',bins=opbins_sub)+
-#  xlab('Sub Surf Temp')+
-#  ylab('Frequency')+
-#  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
-
-rm(substemp.all) #remove substemp.all to save space
-
-substemp.hist <- ggplot(data=substemp.all.df, aes(x=substemp))+
-  geom_histogram(color='black',bins=100)+
-  xlab('Sub Surf Temp')+
-  ylab('Frequency')+
-  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
-  
-substemp.hist #Super weird shape
-
-boxplot(substemp.all.df$substemp, 
-        main = 'Pacific monthly Sub surface temp data from Jan 1980 to Feb 2023',
-        ylab = 'Sub Surf Temp')
+substemp.box <- boxplot(substemp.all.plot,
+                             main='Monthly Mean Sub Surf Temp in Pacific (1982-2022)',
+                             ylab = 'Mean Temp (deg C)')
 
 #finding the mean temp at each month and each year
 substemp.mean <- sapply(1:length(substemp),function(j){
@@ -631,9 +616,9 @@ substemp.mean <- sapply(1:length(substemp),function(j){
     #finding all the temperature data
     data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
     
-    data.temp <- data.temp[190:240,78:88,]
-    
     data.temp.interp <- zoo::na.approx(data.temp)
+    
+    data.temp <- data.temp[190:240,78:88,]
     
     #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
     month.temp <- mean(data.temp.interp)
@@ -651,13 +636,13 @@ substemp.mean <- substemp.mean-273.15
 substemp.mean <- c(substemp.mean)
 
 #calculate a baseline temperature for each month based on the reference period
-substempRefStartIndex = 1; substempRefEndIndex = (2011-1980)*12
-substempMeansRef = sapply(1:12,function(i) {
-  monthValues = substemp.mean[seq(i,(2011-1980)*12,12)]
+substempRefStartIndex = 1; substempRefEndIndex = (2011-1982)*12
+substemp.baselines = sapply(1:12,function(i) {
+  monthValues = substemp.mean[seq(i,(2011-1982)*12,12)]
   return(mean(monthValues))
 })
 
-substemp.anom = substemp.mean[(substempRefEndIndex+1):length(substemp.mean)] - rep(substempMeansRef,(2023-2011))
+substemp.studyAnom = substemp.mean[(substempRefEndIndex+1):length(substemp.mean)] - rep(substemp.baselines,(2023-2011))
   
 
 # previous code - replaced by above
@@ -677,6 +662,14 @@ substemp.anom = substemp.mean[(substempRefEndIndex+1):length(substemp.mean)] - r
 
 #turn matrix to vector for ease of access
 substemp.anom.vec <- as.vector(substemp.anom)
+
+substemp.anom.hist <- hist(substemp.anom.vec,
+                           main='Monthly Sub Surf Temp Anomaly in the Pacific (1982-2022)',
+                           xlab = 'Temp Anomalies (deg C)')
+
+substemp.anom.box <- boxplot(c(substemp.anom.vec),
+                             main='Monthly Sub Surf Temp Anomaly in Pacific (1982-2022)',
+                             ylab = 'Temp Anomalies (deg C)')
 
 adf.test(substemp.anom.vec) #if p < 0.05, reject, stationary
 kpss.test(substemp.anom.vec) #if p < 0.05, reject, not stationary
