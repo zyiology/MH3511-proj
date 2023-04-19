@@ -34,6 +34,7 @@ library(tidyverse)
 library(readxl)
 library(dplyr)
 library(scales)
+library(gghalves)
 library(ggplot2)
 library(lubridate)
 library(gridExtra)
@@ -49,7 +50,7 @@ library(car)
 ## Reading Data (what data is this)
 ```{r}
 
-data <- read.csv('data/historical-daily-weather-records.csv')
+data <- read.csv('C:/Users/ancel/Downloads/historical-daily-weather-records.csv')
 
 head(data)
 
@@ -62,7 +63,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data   
 ```{r}
 
-sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean.csv')
 
 sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
@@ -85,9 +86,54 @@ sat.anom<- data.frame(month = sat.new$month,
                           
                         }))
 
+
+```
+
+```{r}
+
 ggplot(sat) + 
   geom_point(aes(x=month, y = mean_temp)) + 
-  geom_line(aes(x=month, y = mean_temp))
+  geom_line(aes(x=month, y = mean_temp))+
+  labs(x= 'Time (Years)', y = 'Temperature (\u00B0C)') +
+  theme_minimal() +
+  ggtitle("Plot showing the Average monthly surface air temperature against Time")
+
+```
+
+```{r}
+
+ggplot(sat)+
+  geom_boxplot(aes(y=mean_temp), width = 0.1) + 
+  geom_half_point(aes(y = mean_temp), side ="l",range_scale =0.3)+
+  labs(y = 'Temperature (\u00B0C)') +
+  theme_minimal() +
+  ggtitle("Raincloud plot showing the distribution of \nData points for Average monthly surface air temperature") + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+```
+
+
+```{r}
+
+opbins_sat <- 1 + 3.322 * log(nrow(sat))
+
+ggplot(sat)+
+  geom_histogram(aes(x=mean_temp),bins = opbins_sat)+
+  labs(x = 'Temperature (\u00B0C)', y='Frequency') +
+  theme_minimal() +
+  ggtitle("Histogram showing the distribution of \nData points for Average monthly surface air temperature")
+
+```
+
+
+
+```{r}
+
+qqnorm(sat$mean_temp, pch = 1, frame = FALSE)
+qqline(sat$mean_temp, col = "steelblue", lwd = 2)
+
 
 adf.test(sat$mean_temp) #if p < 0.05, reject, stationary
 kpss.test(sat$mean_temp) #if p < 0.05, reject, not stationary
@@ -100,12 +146,15 @@ kpss.test(sat$mean_temp) #if p < 0.05, reject, not stationary
 # Case4: Use differencing for sat
 
 ```
+From the boxplot, histogram, and qqplot, we can conclude that the dataset for average monthly surface air temperature is normally distributed, and thus does not require any transformation.
+
+
 
 ## Reading monthly SG rainfall data
 ```{r}
 
 #reading rainfall data..
-rainf <- read.csv('data/rainfall-monthly-total.csv')
+rainf <- read.csv('C:/Users/ancel/Downloads/rainfall-monthly-total.csv')
 
 rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
@@ -129,10 +178,45 @@ rainf.anom<- data.frame(month = rainf.new$month,
                           
                         }))
 
-#plotting scatter and line plots
+```
+
+## sqrt of SG rainfall data
+```{r}
+
+rainfsqrt <- sqrt(rainf$total_rainfall)
+
+rainfsqrt_df <- data.frame(rainfsqrt, month=rainf$month)
+
+#getting reference range for rainfall..
+rainfsqrt.ref <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('1980-01-01') & rainfsqrt_df$month <= as.Date('2010-12-31'),]
+
+#calculate avg rainf/month in ref period to act as a baseline for anomalies..
+rainfsqrt.ref <- sapply(1:12, function(m){
+  avg.rainf <- round(mean(rainfsqrt.ref[which(month(rainfsqrt.ref$month)==m),]$rainfsqrt),4)
+})
+
+#find rainfall data period of interest, 2011 onwards..
+rainfsqrt.new <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('2011-01-01') & rainfsqrt_df$month <= as.Date('2022-12-31'),]
+
+#caluclating rainfall anomalies from 2011..
+rainfsqrt.anom<- data.frame(month = rainfsqrt.new$month,
+                        anom = sapply(1:nrow(rainfsqrt.new),function(i){
+                        
+                        #rainfall on a specific month - rainfall in ref period of the same month
+                        anomaly <- rainfsqrt.new$rainfsqrt[i]-rainfsqrt.ref[month(rainfsqrt.new$month[i])]
+                          
+                        }))
+
+```
+
+```{r}
+
 ggplot(rainf) + 
   geom_point(aes(x=month, y = total_rainfall)) + 
-  geom_line(aes(x=month, y = total_rainfall))
+  geom_line(aes(x=month, y = total_rainfall)) +
+  labs(x= 'Time (Years)', y = 'Rainfall (mm)') +
+  theme_minimal() +
+  ggtitle("Plot showing Total monthly rainfall against Time")
 
 adf.test(rainf$total_rainfall) #if p < 0.05, reject, stationary
 kpss.test(rainf$total_rainfall) #if p < 0.05, reject, not stationary
@@ -146,11 +230,49 @@ kpss.test(rainf$total_rainfall) #if p < 0.05, reject, not stationary
 
 ```
 
+
+```{r}
+ggplot(rainf)+
+  geom_boxplot(aes(y=total_rainfall), width = 0.1) + 
+  geom_half_point(aes(y = total_rainfall), side ="l",range_scale =0.3)+
+  labs(y = 'Rainfall (mm)') +
+  theme_minimal() +
+  ggtitle("Raincloud plot showing the distribution of \nData points for Total monthly rainfall")+ 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+```
+
+```{r}
+opbins_rainf <- 1 + 3.322 * log(nrow(rainf))
+
+ggplot(rainf)+
+  geom_histogram(aes(x=total_rainfall),bins = opbins_rainf)+
+  labs(x='Rainfall (mm)', y = 'Frequency') +
+  theme_minimal() +
+  ggtitle("Histogram showing the distribution of \nData points for Total monthly rainfall")+ 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+```
+
+```{r}
+
+qqnorm(rainf$total_rainfall, pch = 1, frame = FALSE)
+qqline(rainf$total_rainfall, col = "steelblue", lwd = 2)
+
+
+```
+From the boxplot, histogram, and qqplot, we can observe a distinct right skewed distribution of the datapoints, indicating the presence of very large outliers. We can consider excluding these points or subjecting the dataset to a log or sqrt transformation. 
+
+
 ## SST Summary Statistics for SST
 ```{r}
 
 #read sst data
-sst <- read.table('data/sstoi.indices.txt',header=T)
+sst <- read.table('C:/Users/ancel/Downloads/sstoi.indices.txt',header=T)
 
 sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
                         sst = sst$NINO3.4)
@@ -175,6 +297,22 @@ sst.ts <- ggplot(sst.n34, aes(x=month,y=sst))+
   xlab('Time')
 
 sst.ts #data looks sound
+
+ggplot(sst.n34) + 
+  geom_point(aes(x=month, y = sst)) + 
+  geom_line(aes(x=month, y = sst))
+
+ggplot(sst.n34)+
+  geom_boxplot(aes(y=sst), width = 0.1) + 
+  geom_half_point(aes(y = sst), side ="l",range_scale =0.3)
+
+opbins_sst <- 1 + 3.322 * log(nrow(sst.n34))
+
+ggplot(sst.n34)+
+  geom_histogram(aes(x=sst),bins = opbins_sst)
+zz
+#qqnorm(sst.n34$sst, pch = 1, frame = FALSE)
+#qqline(sst.n34$sst, col = "steelblue", lwd = 2)
 
 adf.test(sst.n34$sst) #if p < 0.05, reject, stationary
 kpss.test(sst.n34$sst) #if p < 0.05, reject, not stationary
@@ -279,7 +417,7 @@ best.ts.sst.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
 
 ```{r read_wind_data}
 
-winddata = nc_open('data/wspd.mean.nc')
+winddata = nc_open('C:/Users/ancel/Downloads/wspd.mean.nc')
 
 
 #calculating baseline values from 1980-2010
@@ -322,6 +460,27 @@ endMonth = (2023-1800)*12 #2022/12
 periodValues = sapply(startMonth:endMonth, ninoAreaMean)
 periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2011))
 
+
+datetime_wind <- as.Date(time, origin="1800-01-01")
+
+df_wind <- data.frame(periodAnomalies, month=datetime_wind[2534:2677])
+
+ggplot(df_wind) + 
+  geom_point(aes(x=month, y = periodAnomalies)) + 
+  geom_line(aes(x=month, y = periodAnomalies))
+
+ggplot(df_wind)+
+  geom_boxplot(aes(y=periodAnomalies), width = 0.1) + 
+  geom_half_point(aes(y = periodAnomalies), side ="l",range_scale =0.3)
+
+opbins_wind <- 1 + 3.322 * log(nrow(df_wind))
+
+ggplot(df_wind)+
+  geom_histogram(aes(x=periodAnomalies),bins = opbins_wind)
+
+#qqnorm(df_wind$periodAnomalies, pch = 1, frame = FALSE)
+#qqline(df_wind$periodAnomalies, col = "steelblue", lwd = 2)
+
 adf.test(allWind) #if p < 0.05, reject, stationary
 kpss.test(allWind) #if p < 0.05, reject, not stationary
 
@@ -354,6 +513,7 @@ ggplot(corsDF) +
 #i.e. jan win data is used to predict x SG temp
 timeShiftWindSAT = which.max(abs(cors))
 
+
 ```
 
 ```{r}
@@ -383,7 +543,7 @@ months <- 01:12
 
 years <- 1980:2022
 
-substemp.folder <- 'data/subsurfacetempfiles/'
+substemp.folder <- 'C:/Users/ancel/Downloads/subsurfacetempfiles/subsurfacetempfiles/'
 
 substemp.file <- paste0(substemp.folder, 'EN.4.2.2.f.analysis.g10.')
 
@@ -425,6 +585,15 @@ substemp.all.df <- data.frame(substemp = c(substemp.all)) #561924 NA values
 substemp.all.df <- substemp.all.df - 273.15
 
 substemp.all.df <- data.frame(substemp=na.interp(substemp.all.df)) #interp na values
+
+
+#opbins_sub <- 1 + 3.322 * log(nrow(substemp.all.df))
+
+#ggplot(data=substemp.all.df, aes(x=substemp))+
+#  geom_histogram(color='black',bins=opbins_sub)+
+#  xlab('Sub Surf Temp')+
+#  ylab('Frequency')+
+#  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
 
 rm(substemp.all) #remove substemp.all to save space
 
@@ -568,7 +737,7 @@ best.ts.substemp.rainf <- which.max(abs(corr.ts.rainf.substemp.df$corr.substemp.
 
 ```{r}
 
-nc_data <- nc_open("data/olr-monthly_v02r07_197901_202303.nc")
+nc_data <- nc_open("C:/Users/ancel/Downloads/olr-monthly_v02r07_197901_202303.nc")
 
 print (nc_data)
 
@@ -598,6 +767,10 @@ dim(cloudiness)
 
 cloudiness[cloudiness==fillvalue$value] <- NA
 
+
+#Obs for cloudiness variable: boxplot, histogram, qqplot
+
+
 # Convert the number of hours to POSIXct format, specifying the origin as "1800-01-01"
 datetime <- as.Date(time, origin="1979-01-01")
 
@@ -618,17 +791,22 @@ ggplot(lat_1)+
   geom_point(aes(x=datetime, y=X1))+
   geom_line (aes(x=datetime, y=X1))
 
-mean(cloudiness[1,1,])
-
 pacific_avg <- sapply(1:531, function(a){
   year_avg <- mean(cloudiness[,,a])
 })
 
 lat <- data.frame(pacific_avg, datetime)
 
+```
+
+```{r}
+
 ggplot(lat)+
   geom_point(aes(x=datetime, y=pacific_avg))+
-  geom_line (aes(x=datetime, y=pacific_avg))
+  geom_line (aes(x=datetime, y=pacific_avg))+
+  labs(x= 'Time (Years)', y = 'OLR'~W/m^2) +
+  theme_minimal() +
+  ggtitle("Plot showing OLR against Time")
 
 adf.test(lat) #if p < 0.05, reject, stationary
 kpss.test(lat) #if p < 0.05, reject, not stationary
@@ -642,6 +820,45 @@ kpss.test(lat) #if p < 0.05, reject, not stationary
 
 ```
 
+```{r}
+
+ggplot(lat)+
+  geom_boxplot(aes(y=pacific_avg), width = 0.1) + 
+  geom_half_point(aes(y = pacific_avg), side ="l",range_scale =0.3)+
+  labs(y = 'OLR'~W/m^2) +
+  theme_minimal() +
+  ggtitle("Raincloud plot showing the distribution of \nData points of OLR")+ 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+```
+
+
+```{r}
+
+opbins_lat <- 1 + 3.322 * log(nrow(lat))
+
+
+test <- lat[385:528,]
+ggplot(lat)+
+  geom_histogram(aes(x=pacific_avg),bins = opbins_lat)+
+  labs(x = 'OLR'~W/m^2, y='Frequency') +
+  theme_minimal() +
+  ggtitle("Histogram showing the distribution of \nData points of OLR")
+
+```
+
+```{r}
+
+#qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
+#qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
+=======
+test_anomoly = test[,1] - rep(monthly_means,12)
+
+```
+From the boxplot, histogram, and qqplot, we can observe a distinct right skewed distribution of the datapoints, indicating the presence of very large outliers. We can consider excluding these points or subjecting the dataset to a log, sqrt, or normalize transformation. 
+
 
 ```{r}
 
@@ -651,41 +868,17 @@ monthly_means = sapply(1:12, function(i) {
   mean(reference[seq(i,nrow(reference),12),1])
 })
 
-
 test <- lat[385:528,]
-```
-
-
-```{r}
 
 test_anomoly = test[,1] - rep(monthly_means,12)
-
-```
  
-Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temprature)
-
-```{r}
-
-cor(rainf.anom[,2], test_anomoly)
-
-rainf.anom
-
-cor(sat.anom[,2], test_anomoly)
-
-cors = rep(0,11)
-for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(144+i)],
-                        sat_anom = sat.anom$anom[(-i+1):144])
-  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
-}
-
 ```
 
 ## All Data, Pairs Plot (Not Time Shifted)
 ```{r message=FALSE, warning=FALSE}
-enso.df <- data.frame(month = sat.anom$month,
-                      sat.sg=sat.anom$anom,
-                      rainf.sg=rainf.anom$anom,
+enso.df <- data.frame(month = sat.anom$month, 
+                      sat.sg=sat.anom$anom, # Normally distributed
+                      rainf.sg=rainf.anom$anom, #
                       sst.pcf=sst.anom$anom,
                       substemp.pcf=substemp.anom.vec,
                       okla.pcf=test_anomoly,
@@ -762,28 +955,24 @@ p.wind <-aov.wind[[1]]$`Pr(>F)`[1]
 
 ```
 
-## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
-```{r}
+# Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+#``r
+#cor(rainf.anom[,2], test_anomoly)
+#cor(sat.anom[,2], test_anomoly)
+#cors = rep(0,11)
 
-cor(rainf.anom[,2], test_anomoly)
-
-rainf.anom
-
-cor(sat.anom[,2], test_anomoly)
-
-cors = rep(0,11)
-for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
-                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
-  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
-}
-
-cors2 = rep(0,11)
-for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
-                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
-  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
-}
+#for (i in -12:0) {
+#  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+#                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
+#  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
+#}
+#
+#cors2 = rep(0,11)
+#for (i in -12:0) {
+#  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+#                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
+#  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
+#}
 
 
 ```
@@ -799,6 +988,7 @@ cor(sat.anom[,2], test_anomoly)
 cors = rep(0,11)
 for (i in -12:0) {
   df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+
                         sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
