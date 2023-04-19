@@ -77,35 +77,38 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data   
 ```{r}
 
-sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
+sat.all <- read.csv('data/surface-air-temperature-monthly-mean.csv')
 
-sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
+sat.all[,1]<-as.Date(paste(sat.all[,1], "-01", sep=""))
 
 #getting reference range..
-sat.ref <- sat[sat$month >= as.Date('1980-01-01') & sat$month <= as.Date('2010-12-31'),]
+sat.refVal <- sat.all$mean_temp[sat.all$month >= as.Date('1982-01-01') & sat.all$month <= as.Date('2010-12-31')]
 
 #calculate avg temp/month in ref period to act as a baseline for anomalies..
-sat.ref <- sapply(1:12, function(m){
-  avg.temp <- round(mean(sat.ref[which(month(sat.ref$month)==m),]$mean_temp),4)
-  
+sat.baseline <- sapply(1:12, function(i){
+  #avg.temp <- round(mean(sat.ref[which(month(sat.ref$month)==m),]$mean_temp),4)
+  sat.refVal[seq(i,length(sat.refVal),12)] %>% mean()
 })
-sat.new <- sat[sat$month >= as.Date('2011-01-01') & sat$month <= as.Date('2022-12-31'),]
+
+sat.studyVal <- sat.all$mean_temp[sat.all$month >= as.Date('2011-01-01') & sat.all$month <= as.Date('2022-12-31')]
 
 #calculating sat anomalies from 2011 onwards..
-sat.anom<- data.frame(month = sat.new$month,
-                        anom = sapply(1:nrow(sat.new),function(i){
-                        
-                        #sat on a specific month - sat in ref period of the same month..
-                        anomaly <- sat.new$mean_temp[i]-sat.ref[month(sat.new$month[i])]
-                          
-                        }))
+sat.studyAnom = sat.studyVal - rep(sat.baseline,(2023-2011))
+
+# <- data.frame(month = sat.new$month,
+#                         anom = sapply(1:nrow(sat.new),function(i){
+#                         
+#                         #sat on a specific month - sat in ref period of the same month..
+#                         anomaly <- sat.new$mean_temp[i]-sat.ref[month(sat.new$month[i])]
+#                           
+#                         }))
 
 
 ```
 
 ```{r}
 
-ggplot(sat) + 
+ggplot(sat.all) + 
   geom_point(aes(x=month, y = mean_temp)) + 
   geom_line(aes(x=month, y = mean_temp))+
   labs(x= 'Time (Years)', y = 'Temperature (\u00B0C)') +
@@ -116,7 +119,7 @@ ggplot(sat) +
 
 ```{r}
 
-ggplot(sat)+
+ggplot(sat.all)+
   geom_boxplot(aes(y=mean_temp), width = 0.1) + 
   geom_half_point(aes(y = mean_temp), side ="l",range_scale =0.3)+
   labs(y = 'Temperature (\u00B0C)') +
@@ -131,10 +134,10 @@ ggplot(sat)+
 
 ```{r}
 
-opbins_sat <- 1 + 3.322 * log(nrow(sat))
+sat.opbins <- 1 + 3.322 * log(nrow(sat.all))
 
-ggplot(sat)+
-  geom_histogram(aes(x=mean_temp),bins = opbins_sat)+
+ggplot(sat.all)+
+  geom_histogram(aes(x=mean_temp),bins = sat.opbins)+
   labs(x = 'Temperature (\u00B0C)', y='Frequency') +
   theme_minimal() +
   ggtitle("Histogram showing the distribution of \nData points for Average monthly surface air temperature")
@@ -145,12 +148,12 @@ ggplot(sat)+
 
 ```{r}
 
-qqnorm(sat$mean_temp, pch = 1, frame = FALSE)
-qqline(sat$mean_temp, col = "steelblue", lwd = 2)
+qqnorm(sat.all$mean_temp, pch = 1, frame = FALSE)
+qqline(sat.all$mean_temp, col = "steelblue", lwd = 2)
 
 
-adf.test(sat$mean_temp) #if p < 0.05, reject, stationary
-kpss.test(sat$mean_temp) #if p < 0.05, reject, not stationary
+adf.test(sat.all$mean_temp) #if p < 0.05, reject, stationary
+kpss.test(sat.all$mean_temp) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -168,72 +171,67 @@ From the boxplot, histogram, and qqplot, we can conclude that the dataset for av
 ```{r}
 
 #reading rainfall data..
-rainf <- read.csv('data/rainfall-monthly-total.csv')
+rainf.all <- read.csv('data/rainfall-monthly-total.csv')
 
-rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
+rainf.all[,1]<-as.Date(paste(rainf.all[,1], "-01", sep=""))
 
 #getting reference range for rainfall..
-rainf.ref <- rainf[rainf$month >= as.Date('1980-01-01') & rainf$month <= as.Date('2010-12-31'),]
+rainf.refVal <- rainf[rainf.all$month >= as.Date('1982-01-01') & rainf.all$month <= as.Date('2010-12-31')]
 
 #calculate avg rainf/month in ref period to act as a baseline for anomalies..
-rainf.ref <- sapply(1:12, function(m){
-  avg.rainf <- round(mean(rainf.ref[which(month(rainf.ref$month)==m),]$total_rainfall),4)
+rainf.baseline<- sapply(1:12, function(i){
+  #avg.temp <- round(mean(sat.ref[which(month(sat.ref$month)==m),]$mean_temp),4)
+  rainf.refVal[seq(i,length(rainf.refVal),12)] %>% mean()
 })
 
 #find rainfall data period of interest, 2011 onwards..
-rainf.new <- rainf[rainf$month >= as.Date('2011-01-01') & rainf$month <= as.Date('2022-12-31'),]
+rainf.studyVal <- rainf.all$total_rainfall[rainf.all$month >= as.Date('2011-01-01') & rainf.all$month <= as.Date('2022-12-31')]
 
 #caluclating rainfall anomalies from 2011..
-rainf.anom<- data.frame(month = rainf.new$month,
-                        anom = sapply(1:nrow(rainf.new),function(i){
-                        
-                        #rainfall on a specific month - rainfall in ref period of the same month
-                        anomaly <- rainf.new$total_rainfall[i]-rainf.ref[month(rainf.new$month[i])]
-                          
-                        }))
+rainf.studyAnom<- rainf.studyVal - rep(rainf.baseline,(2023-2011))
 
 ```
 
 ## sqrt of SG rainfall data
 ```{r}
 
-rainfsqrt <- sqrt(rainf$total_rainfall)
-
-rainfsqrt_df <- data.frame(rainfsqrt, month=rainf$month)
-
-#getting reference range for rainfall..
-rainfsqrt.ref <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('1980-01-01') & rainfsqrt_df$month <= as.Date('2010-12-31'),]
-
-#calculate avg rainf/month in ref period to act as a baseline for anomalies..
-rainfsqrt.ref <- sapply(1:12, function(m){
-  avg.rainf <- round(mean(rainfsqrt.ref[which(month(rainfsqrt.ref$month)==m),]$rainfsqrt),4)
-})
-
-#find rainfall data period of interest, 2011 onwards..
-rainfsqrt.new <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('2011-01-01') & rainfsqrt_df$month <= as.Date('2022-12-31'),]
-
-#caluclating rainfall anomalies from 2011..
-rainfsqrt.anom<- data.frame(month = rainfsqrt.new$month,
-                        anom = sapply(1:nrow(rainfsqrt.new),function(i){
-                        
-                        #rainfall on a specific month - rainfall in ref period of the same month
-                        anomaly <- rainfsqrt.new$rainfsqrt[i]-rainfsqrt.ref[month(rainfsqrt.new$month[i])]
-                          
-                        }))
+# rainfsqrt <- sqrt(rainf$total_rainfall)
+# 
+# rainfsqrt_df <- data.frame(rainfsqrt, month=rainf$month)
+# 
+# #getting reference range for rainfall..
+# rainfsqrt.ref <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('1980-01-01') & rainfsqrt_df$month <= as.Date('2010-12-31'),]
+# 
+# #calculate avg rainf/month in ref period to act as a baseline for anomalies..
+# rainfsqrt.ref <- sapply(1:12, function(m){
+#   avg.rainf <- round(mean(rainfsqrt.ref[which(month(rainfsqrt.ref$month)==m),]$rainfsqrt),4)
+# })
+# 
+# #find rainfall data period of interest, 2011 onwards..
+# rainfsqrt.new <- rainfsqrt_df[rainfsqrt_df$month >= as.Date('2011-01-01') & rainfsqrt_df$month <= as.Date('2022-12-31'),]
+# 
+# #caluclating rainfall anomalies from 2011..
+# rainfsqrt.anom<- data.frame(month = rainfsqrt.new$month,
+#                         anom = sapply(1:nrow(rainfsqrt.new),function(i){
+#                         
+#                         #rainfall on a specific month - rainfall in ref period of the same month
+#                         anomaly <- rainfsqrt.new$rainfsqrt[i]-rainfsqrt.ref[month(rainfsqrt.new$month[i])]
+#                           
+#                         }))
 
 ```
 
 ```{r}
 
-ggplot(rainf) + 
+ggplot(rainf.all) + 
   geom_point(aes(x=month, y = total_rainfall)) + 
   geom_line(aes(x=month, y = total_rainfall)) +
   labs(x= 'Time (Years)', y = 'Rainfall (mm)') +
   theme_minimal() +
   ggtitle("Plot showing Total monthly rainfall against Time")
 
-adf.test(rainf$total_rainfall) #if p < 0.05, reject, stationary
-kpss.test(rainf$total_rainfall) #if p < 0.05, reject, not stationary
+adf.test(rainf.all$total_rainfall) #if p < 0.05, reject, stationary
+kpss.test(rainf.all$total_rainfall) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -246,9 +244,9 @@ kpss.test(rainf$total_rainfall) #if p < 0.05, reject, not stationary
 
 
 ```{r}
-ggplot(rainf)+
+ggplot(rainf.all)+
   geom_boxplot(aes(y=total_rainfall), width = 0.1) + 
-  geom_half_point(aes(y = total_rainfall), side ="l",range_scale =0.3)+
+  #geom_half_point(aes(y = total_rainfall), side ="l",range_scale =0.3)+
   labs(y = 'Rainfall (mm)') +
   theme_minimal() +
   ggtitle("Raincloud plot showing the distribution of \nData points for Total monthly rainfall")+ 
@@ -259,10 +257,10 @@ ggplot(rainf)+
 ```
 
 ```{r}
-opbins_rainf <- 1 + 3.322 * log(nrow(rainf))
+rainf.opbins <- 1 + 3.322 * log(nrow(rainf.all))
 
-ggplot(rainf)+
-  geom_histogram(aes(x=total_rainfall),bins = opbins_rainf)+
+ggplot(rainf.all)+
+  geom_histogram(aes(x=total_rainfall),bins = rainf.opbins)+
   labs(x='Rainfall (mm)', y = 'Frequency') +
   theme_minimal() +
   ggtitle("Histogram showing the distribution of \nData points for Total monthly rainfall")+ 
@@ -274,8 +272,8 @@ ggplot(rainf)+
 
 ```{r}
 
-qqnorm(rainf$total_rainfall, pch = 1, frame = FALSE)
-qqline(rainf$total_rainfall, col = "steelblue", lwd = 2)
+# qqnorm(rainf.all$total_rainfall, pch = 1, frame = FALSE)
+# qqline(rainf.all$total_rainfall, col = "steelblue", lwd = 2)
 
 
 ```
@@ -286,7 +284,7 @@ From the boxplot, histogram, and qqplot, we can observe a distinct right skewed 
 ```{r}
 
 #read sst data
-sst <- read.table('data/sstoi.indices.txt',header=T)
+sst.all <- read.table('data/sstoi.indices.txt',header=T)
 
 sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
                         sst = sst$NINO3.4)
@@ -431,72 +429,73 @@ best.ts.sst.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
 
 ```{r read_wind_data}
 
-winddata = nc_open('data/wspd.mean.nc')
-
-
-#calculating baseline values from 1980-2010
-time = ncvar_get(winddata,"time") #data starts from 1800/01, end at 2023/01
-startMonth = (1980-1800)*12+1 #1980/01
-endMonth = (2011-1800)*12 #2010/12
-
-lat = ncvar_get(winddata,'lat')
-lon = ncvar_get(winddata,'lon')
-latIndices = which(lat<=5 & lat>=-5)
-lonIndices = which(lon<=240 & lon>=190)
+wind.nc = nc_open('data/wspd.mean.nc')
 
 #3D array, lat, lon, time dimensions
-windValues = ncvar_get(winddata, 'wspd')
+wind.data = ncvar_get(winddata, 'wspd')
 
-#get the mean of the wind values within the nino3.4 region
-ninoAreaMean = function(index) {
-  windslice = windValues[,,index]
-  ninoRegionData = windslice[lonIndices,latIndices]
-  return(mean(ninoRegionData,na.rm=TRUE))
+#calculating baseline values from 1980-2010
+wind.time = ncvar_get(wind.nc,"time") #data starts from 1800/01, end at 2023/01
+# startMonth = (1980-1800)*12+1 #1980/01
+# endMonth = (2011-1800)*12 #2010/12
+
+wind.lat = ncvar_get(wind.nc,'lat')
+wind.lon = ncvar_get(wind.nc,'lon')
+wind.latIndices = which(wind.lat<=5 & wind.lat>=-5)
+wind.lonIndices = which(wind.lon<=240 & wind.lon>=190)
+
+#get the mean of the wind values within the Nino3.4 region
+wind.ninoArea = function(index) {
+  wind.slice = wind.data[,,index]
+  wind.slice = zoo::na.approx(wind.slice)
+  return(wind.slice[wind.lonIndices,wind.latIndices])
 }
 
-#get the means corresponding to reference period
-refPeriodValues = sapply(startMonth:endMonth, ninoAreaMean)
+#all wind values
+wind.all = lapply(((1980-1800)*12+1):((2023-1800)*12),wind.ninoArea)
+wind.allDF = data.frame(values=as.vector(do.call(rbind,wind.all)))
 
-#all wind values in one col
-allWind <- sapply(((1980-1800)*12+1):((2023-1800)*12),ninoAreaMean)
+ggplot(data=wind.allDF) +
+  geom_histogram(aes(x=values),bins=30)
+
+wind.allMeans = sapply(allWind, mean)
+
+wind.endRefIndex = ((2011-1980)*12)
+#get the means corresponding to reference period
+wind.refVal = wind.allMeans[1:wind.endRefIndex]#sapply(startMonth:endMonth, ninoAreaMean)
 
 #calculate a baseline temperature for each month based on the reference period
-monthlyRefMeans = sapply(1:12,function(i) {
-  monthValues = refPeriodValues[seq(i,length(refPeriodValues),12)]
+wind.baselines = sapply(1:12,function(i) {
+  monthValues = wind.refVal[seq(i,length(wind.refVal),12)]
   return(mean(monthValues))
 })
 
-
 #calculating anomaly (temperature for a given month - corresponding baseline)
 
-startMonth = (2011-1800)*12+1 #2011/01
-endMonth = (2023-1800)*12 #2022/12
-periodValues = sapply(startMonth:endMonth, ninoAreaMean)
-periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2011))
+wind.studyVal = wind.allMeans[(wind.endRefIndex+1):length(wind.allMeans)]
+wind.studyAnom = wind.studyVal - rep(wind.baselines,(2023-2011))
 
+wind.studyDatetime <- as.Date(time, origin="1800-01-01")
+wind.studyDF <- data.frame(wind.studyAnom, month=wind.studyDatetime[2534:2677])
 
-datetime_wind <- as.Date(time, origin="1800-01-01")
+ggplot(wind.studyDF) + 
+  geom_point(aes(x=month, y = wind.studyAnom)) + 
+  geom_line(aes(x=month, y = wind.studyAnom))
 
-df_wind <- data.frame(periodAnomalies, month=datetime_wind[2534:2677])
+ggplot(wind.studyDF) + 
+  geom_boxplot(aes(y=wind.studyAnom), width = 0.1) + 
+  geom_half_point(aes(y = wind.studyAnom), side ="l",range_scale =0.3)
 
-ggplot(df_wind) + 
-  geom_point(aes(x=month, y = periodAnomalies)) + 
-  geom_line(aes(x=month, y = periodAnomalies))
+wind.opbins <- 1 + 3.322 * log(nrow(wind.studyDF))
 
-ggplot(df_wind)+
-  geom_boxplot(aes(y=periodAnomalies), width = 0.1) + 
-  geom_half_point(aes(y = periodAnomalies), side ="l",range_scale =0.3)
-
-opbins_wind <- 1 + 3.322 * log(nrow(df_wind))
-
-ggplot(df_wind)+
-  geom_histogram(aes(x=periodAnomalies),bins = opbins_wind)
+ggplot(wind.studyDF)+
+  geom_histogram(aes(x=wind.studyAnom),bins = wind.opbins)
 
 #qqnorm(df_wind$periodAnomalies, pch = 1, frame = FALSE)
 #qqline(df_wind$periodAnomalies, col = "steelblue", lwd = 2)
 
-adf.test(allWind) #if p < 0.05, reject, stationary
-kpss.test(allWind) #if p < 0.05, reject, not stationary
+adf.test(wind.allDF) #if p < 0.05, reject, stationary
+kpss.test(wind.allDF) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -513,9 +512,9 @@ time shift for wind anomaly and sg sat anomaly
 
 cors = rep(0,13)
 for (i in 0:12) {
-  windanomaly = periodAnomalies[1:(144-i)] #1:144 to 1:132
+  windanomaly = wind.studyAnom[1:(144-i)] #1:144 to 1:132
   sat_anom = sat.anom$anom[(1+i):(144)] #1:144 to 13:144
-  cors[i]=cor(windanomaly,sat_anom)
+  cors[i]=cor(wind.studyAnom,sat_anom)
 }
 
 corsDF = data.frame(cors = cors, x = 0:12)
@@ -525,7 +524,7 @@ ggplot(corsDF) +
 
 #should use the wind data to predict SG temperature x months in the future
 #i.e. jan win data is used to predict x SG temp
-timeShiftWindSAT = which.max(abs(cors))
+wind.timeshift.sat = which.max(abs(cors))
 
 
 ```
@@ -545,7 +544,7 @@ ggplot(corsDF) +
   geom_line(aes(y=cors,x=x))
 
 #same process as for sat
-timeShiftWindRainf = which.max(abs(cors))
+wind.timeshift.rainf = which.max(abs(cors))
 
 ```
 
@@ -1055,6 +1054,7 @@ timeshiftedSATDF = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
                               substemp.pcf = enso.df$substemp.pcf[(1+maxshift):n],#not timeshifted
                               okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudSAT):(n-timeShiftCloudSAT)],
                               wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindSAT):(n-timeShiftWindSAT)])
+
 ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
         lower = list(continuous = wrap(lowerFn, method='lm')),
@@ -1176,7 +1176,7 @@ rainFormula = (rainf.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
 k=5
 n=nrow(timeshiftedRainfDF)
 groups = cut(1:n,k,label=F)
-timeshiftedRainfDF = timeshiftedRainfDF[sample(n),]
+#timeshiftedRainfDF = timeshiftedRainfDF[sample(n),]
 
 numCores = detectCores()
 cl = makeCluster(numCores)
@@ -1227,11 +1227,11 @@ colMeans(results)
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 
 satFormula = (sat.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
 
-timeshiftedSATDF = timeshiftedSATDF[sample(n),]
+#timeshiftedSATDF = timeshiftedSATDF[sample(n),]
 cl = makeCluster(numCores)
 clusterExport(cl,c('neuralnet','satFormula','timeshiftedSATDF','groups','randomForest','xgboost','params','rsquarer'))
 results = parSapply(cl, 1:k, function(i) {
@@ -1270,11 +1270,11 @@ results = parSapply(cl, 1:k, function(i) {
   pred = predict(rf,newdata=test.st)
   rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
   rfRSQ = rsquarer(test.st$sat.sg,pred)
-  
-  rnn = trainr(Y=train.st[,1],X=train.st[,2:5],learningrate=1)
-  pred = predictr(rnn,X=test.st[,2:5])
-  rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
-  rfRSQ = rsquarer(test.st$sat.sg,pred)
+  # 
+  # rnn = trainr(Y=train.st[,1],X=train.st[,2:5],learningrate=1)
+  # pred = predictr(rnn,X=test.st[,2:5])
+  # rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  # rfRSQ = rsquarer(test.st$sat.sg,pred)
   
 
   return(c(linearRMSE,linearRSQ,nnRMSE,nnRSQ,rfRMSE,rfRSQ,xgbRMSE,xgbRSQ))
@@ -1361,43 +1361,7 @@ train = timeshiftedRainfDF[groups!=1,]
                   linear.output=FALSE)
   
   pred = predict(object=net,newdata=test.st)[,1]
-  
-## RNN
-  
-rmax_len <- 6 # the number of previous examples we'll look at
-n = nrow(timeshiftedRainfDF)
 
-start_indexes = seq(1,n-max_len+1,by=1)
-
-X1 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),2])))
-X2 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),3])))
-X3 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),4])))
-X4 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),5])))
-X = data.frame(cbind(X1,X2,X3,X4))
-
-Y = data.frame(Y=timeshiftedRainfDF[6:n,1])
-
-df = cbind(Y,X)
-
-train = df[1:100,]
-test = df[101:131,]
-  
-train.st = data.frame(scale(train))
-means = colMeans(train); sds = apply(train,2,sd)
-test.st = data.frame(scale(test,center=means,scale=sds))
-
-net = neuralnet(formula = Y~.,
-          data = df,
-          hidden=c(6),
-          algorithm="rprop+",
-          stepmax=1e+08,
-          linear.output=TRUE)
-
-pred = predict(object=net,newdata=test.st)[,1]
-
-compare = data.frame(pred=pred,obs=test$Y)
-
-## RNN END
 
 
 Y = array(,dim=c(6,129,1))
@@ -1420,6 +1384,105 @@ pred = predictr(rnn,X=X)
 
 ```
 
+
+```{r recurrentneuralnet}
+
+## RNN
+
+unshiftedSATDF = data.frame(sat.sg = enso.df$sat.sg,
+                              sst.pcf = enso.df$sst.pcf,#not timeshifted,
+                              substemp.pcf = enso.df$substemp.pcf,#not timeshifted
+                              okla.pcf = enso.df$okla.pcf,
+                              wind.pcf = enso.df$wind.pcf)
+
+  
+max_len <- 2 # the number of previous examples we'll look at
+n = nrow(unshiftedSATDF)
+
+start_indexes = seq(1,n-max_len+1,by=1)
+
+X1 = t(sapply(start_indexes, function(i) return(unshiftedSATDF[i:(i+max_len-1),2])))
+X2 = t(sapply(start_indexes, function(i) return(unshiftedSATDF[i:(i+max_len-1),3])))
+X3 = t(sapply(start_indexes, function(i) return(unshiftedSATDF[i:(i+max_len-1),4])))
+X4 = t(sapply(start_indexes, function(i) return(unshiftedSATDF[i:(i+max_len-1),5])))
+X = data.frame(cbind(X1,X2,X3,X4))
+
+Y = data.frame(Y=unshiftedSATDF[max_len:n,1])
+
+df = cbind(Y,X)
+
+train = df[1:100,]
+test = df[101:131,]
+  
+train.st = data.frame(scale(train))
+means = colMeans(train); sds = apply(train,2,sd)
+test.st = data.frame(scale(test,center=means,scale=sds))
+
+net = neuralnet(formula = Y~.,
+          data = df,
+          hidden=c(6,6),
+          algorithm="sag",
+          stepmax=1e+08,
+          linear.output=TRUE)
+
+pred = predict(object=net,newdata=test.st)[,1]
+
+compare = data.frame(pred=pred,obs=test$Y)
+
+rnnRMSE = sqrt(sum((pred-test.st$Y)^2/length(test.st)))
+rnnRSQ = rsquarer(test.st$Y,pred)
+
+rnnRMSE;rnnRSQ
+
+## RNN END
+
+```
+
+```{r recurrentneuralnet}
+
+## RNN
+
+  
+max_len <- 3 # the number of previous examples we'll look at
+n = nrow(timeshiftedSATDF)
+
+start_indexes = seq(1,n-max_len+1,by=1)
+
+X1 = t(sapply(start_indexes, function(i) return(timeshiftedSATDF[i:(i+max_len-1),2])))
+X2 = t(sapply(start_indexes, function(i) return(timeshiftedSATDF[i:(i+max_len-1),3])))
+X3 = t(sapply(start_indexes, function(i) return(timeshiftedSATDF[i:(i+max_len-1),4])))
+X4 = t(sapply(start_indexes, function(i) return(timeshiftedSATDF[i:(i+max_len-1),5])))
+X = data.frame(cbind(X1,X2,X3,X4))
+
+Y = data.frame(Y=timeshiftedSATDF[max_len:n,1])
+
+df = cbind(Y,X)
+
+train = df[1:100,]
+test = df[101:131,]
+  
+train.st = data.frame(scale(train))
+means = colMeans(train); sds = apply(train,2,sd)
+test.st = data.frame(scale(test,center=means,scale=sds))
+
+net = neuralnet(formula = Y~.,
+          data = df,
+          hidden=c(6),
+          algorithm="sag",
+          stepmax=1e+08,
+          linear.output=TRUE)
+
+pred = predict(object=net,newdata=test.st)[,1]
+
+compare = data.frame(pred=pred,obs=test$Y)
+
+rnnRMSE = sqrt(sum((pred-test.st$Y)^2/length(test.st)))
+rnnRSQ = rsquarer(test.st$Y,pred)
+
+rnnRMSE;rnnRSQ
+
+## RNN END
+```
 
 ```{r enso_test}
 
