@@ -77,7 +77,7 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 ## Reading SG Surface Air Temp data   
 ```{r}
 
-sat <- read.csv('C:/Users/ancel/Downloads/surface-air-temperature-monthly-mean.csv')
+sat <- read.csv('data/surface-air-temperature-monthly-mean.csv')
 
 sat[,1]<-as.Date(paste(sat[,1], "-01", sep=""))
 
@@ -168,7 +168,7 @@ From the boxplot, histogram, and qqplot, we can conclude that the dataset for av
 ```{r}
 
 #reading rainfall data..
-rainf <- read.csv('C:/Users/ancel/Downloads/rainfall-monthly-total.csv')
+rainf <- read.csv('data/rainfall-monthly-total.csv')
 
 rainf[,1]<-as.Date(paste(rainf[,1], "-01", sep=""))
 
@@ -286,7 +286,7 @@ From the boxplot, histogram, and qqplot, we can observe a distinct right skewed 
 ```{r}
 
 #read sst data
-sst <- read.table('C:/Users/ancel/Downloads/sstoi.indices.txt',header=T)
+sst <- read.table('data/sstoi.indices.txt',header=T)
 
 sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
                         sst = sst$NINO3.4)
@@ -431,7 +431,7 @@ best.ts.sst.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
 
 ```{r read_wind_data}
 
-winddata = nc_open('C:/Users/ancel/Downloads/wspd.mean.nc')
+winddata = nc_open('data/wspd.mean.nc')
 
 
 #calculating baseline values from 1980-2010
@@ -557,7 +557,7 @@ months <- 01:12
 
 years <- 1980:2022
 
-substemp.folder <- 'C:/Users/ancel/Downloads/subsurfacetempfiles/subsurfacetempfiles/'
+substemp.folder <- 'data/subsurfacetempfiles/subsurfacetempfiles/'
 
 substemp.file <- paste0(substemp.folder, 'EN.4.2.2.f.analysis.g10.')
 
@@ -751,7 +751,7 @@ best.ts.substemp.rainf <- which.max(abs(corr.ts.rainf.substemp.df$corr.substemp.
 
 ```{r}
 
-nc_data <- nc_open("C:/Users/ancel/Downloads/olr-monthly_v02r07_197901_202303.nc")
+nc_data <- nc_open("data/olr-monthly_v02r07_197901_202303.nc")
 
 print (nc_data)
 
