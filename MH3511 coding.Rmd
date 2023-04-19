@@ -41,6 +41,17 @@ library(gridExtra)
 library(ncdf4)
 library(tibbletime)
 library(GGally)
+
+#check which ones are needed later
+library(parallel)
+library(neuralnet)
+library(randomForest)
+library(xgboost)
+library(keras)
+library(tensorflow)
+library(rnn)
+library(caret)
+
 library(tseries)
 library(forecast)
 library(pracma)
@@ -50,7 +61,10 @@ library(car)
 ## Reading Data (what data is this)
 ```{r}
 
-data <- read.csv('C:/Users/ancel/Downloads/historical-daily-weather-records.csv')
+
+set.seed(999)
+
+data <- read.csv('data/historical-daily-weather-records.csv')
 
 head(data)
 
@@ -394,7 +408,7 @@ corr.ts.sat.sst <- sapply(1:12,function(i){
 corr.ts.sat.sst.df <- data.frame(month = corr.ts.sat.sst[1,],
                               corr.sst.sat = corr.ts.sat.sst[2,])
 
-best.ts.sst.sat <- which.max(abs(corr.ts.sat.sst.df$corr.sst.sat))
+best.ts.sst.sat <- which.max(abs(corr.ts.sat.sst.df$corr.sst.sat)) -1
 
 # timeshifting to find best correlation for sst & sg rainf, consider only forward shift since we using pacific data to predict sg data
 corr.ts.rainf.sst <- sapply(1:12,function(i){
@@ -717,7 +731,7 @@ corr.ts.sat.substemp <- sapply(1:12,function(i){
 corr.ts.sat.substemp.df <- data.frame(month = corr.ts.sat.substemp[1,],
                               corr.substemp.sat = corr.ts.sat.substemp[2,])
 
-best.ts.substemp.sat <- which.max(abs(corr.ts.sat.substemp.df$corr.substemp.sat))
+best.ts.substemp.sat <- which.max(abs(corr.ts.sat.substemp.df$corr.substemp.sat))-1
 
 # timeshifting to find best correlation for substemp & sg rainf, consider only forward shift since we using pacific data to predict sg data
 corr.ts.rainf.substemp <- sapply(1:12,function(i){
@@ -841,6 +855,7 @@ opbins_lat <- 1 + 3.322 * log(nrow(lat))
 
 
 test <- lat[385:528,]
+
 ggplot(lat)+
   geom_histogram(aes(x=pacific_avg),bins = opbins_lat)+
   labs(x = 'OLR'~W/m^2, y='Frequency') +
@@ -851,17 +866,9 @@ ggplot(lat)+
 
 ```{r}
 
+
 #qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
 #qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
-=======
-test_anomoly = test[,1] - rep(monthly_means,12)
-
-```
-From the boxplot, histogram, and qqplot, we can observe a distinct right skewed distribution of the datapoints, indicating the presence of very large outliers. We can consider excluding these points or subjecting the dataset to a log, sqrt, or normalize transformation. 
-
-
-```{r}
-
 reference <- lat[13:384,]
 
 monthly_means = sapply(1:12, function(i) {
@@ -871,8 +878,12 @@ monthly_means = sapply(1:12, function(i) {
 test <- lat[385:528,]
 
 test_anomoly = test[,1] - rep(monthly_means,12)
- 
+
+
 ```
+From the boxplot, histogram, and qqplot, we can observe a distinct right skewed distribution of the datapoints, indicating the presence of very large outliers. We can consider excluding these points or subjecting the dataset to a log, sqrt, or normalize transformation. 
+
+
 
 ## All Data, Pairs Plot (Not Time Shifted)
 ```{r message=FALSE, warning=FALSE}
@@ -988,7 +999,6 @@ cor(sat.anom[,2], test_anomoly)
 cors = rep(0,11)
 for (i in -12:0) {
   df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
-
                         sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
@@ -1003,8 +1013,10 @@ for (i in -12:0) {
 }
 
 timeShiftCloudRainf = which.max(abs(cors2))
+
 ```
 ## Timeshifting our data
+
 ```{r}
 
 #enso.df
@@ -1012,6 +1024,7 @@ timeShiftCloudRainf = which.max(abs(cors2))
 maxshift = max(c(timeShiftWindRainf,
                  timeShiftWindSAT,
                  best.ts.substemp.rainf,
+                 #best.ts.substemp.sat,
                  timeShiftCloudSAT,
                  timeShiftCloudRainf))
 
@@ -1029,7 +1042,22 @@ timeshiftedSATDF = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
                               substemp.pcf = enso.df$substemp.pcf[(1+maxshift):n],#not timeshifted
                               okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudSAT):(n-timeShiftCloudSAT)],
                               wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindSAT):(n-timeShiftWindSAT)])
+ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
 
+
+ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
 
 ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
@@ -1047,6 +1075,203 @@ ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
         title='Distribution and Correlation of Predictor Variables')+
         theme(axis.text.x = element_text(angle=90),
               axis.text = element_text(size=7))
+
+```
+
+
+```{r, eval=FALSE}
+
+
+rainFormula = (rainf.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
+satFornula = (sat.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
+
+testIndices = sample(1:136,30)
+
+train = timeshiftedRainfDF[-testIndices,]
+test = timeshiftedRainfDF[testIndices,]
+
+train.st = data.frame(scale(train))
+
+means = colMeans(train); sds = apply(train,2,sd)
+
+test.st = data.frame(scale(test,center=means,scale=sds))
+
+model = glm(formula=rainFormula,
+    data=train.st)
+
+preds = predict(model,test.st)
+
+
+with(summary(model), 1 - deviance/null.deviance)
+
+df = data.frame(preds = preds,
+           obs = test$rainf.sg)
+
+
+#parallelize training of multiple models (initial weights are randomized)
+numCores = detectCores()
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','rainFormula','train.st'))
+nets = parLapply(cl,1:(36), function(i) {
+  net = neuralnet(formula=rainFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=c(4),
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=FALSE)
+})
+stopCluster(cl)
+
+rsquares = sapply(nets[1:(length(nets))], function(net) {
+  pred = predict(object=net,newdata=test.st)[,1]
+  resi = test.st$rainf.sg-pred
+  SSR = sum(resi^2)
+  resi2 = test.st['rainf.sg']-mean(test.st$rainf.sg)
+  SST = sum(resi2^2)
+  rsquare = 1-SSR/SST
+})
+
+round(rsquares,4)
+
+
+
+#rsquarer <- function (x, y) cor(x, y) ^ 2
+
+#rsquarer(pred,test.st$rainf.sg)
+```
+
+
+
+```{r}
+
+rsquarer = function(obs,pred) {
+  tss = sum((obs-mean(obs))^2)
+  rss = sum((obs-pred)^2)
+  return(1-rss/tss)
+}
+
+params <- list(
+  objective = "reg:squarederror", # Specify the objective (e.g., regression)
+  eta = 0.01, # Learning rate
+  max_depth = 5, # Maximum depth of trees
+  subsample = 0.8, # Subsampling ratio
+  colsample_bytree = 0.8 # Column subsampling ratio
+)
+
+rainFormula = (rainf.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
+
+k=5
+n=nrow(timeshiftedRainfDF)
+groups = cut(1:n,k,label=F)
+timeshiftedRainfDF = timeshiftedRainfDF[sample(n),]
+
+numCores = detectCores()
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','rainFormula','timeshiftedRainfDF','groups','rsquarer','xgboost','params','randomForest'))
+results = parSapply(cl, 1:k, function(i) {
+  
+  train = timeshiftedRainfDF[groups!=i,]
+  test = timeshiftedRainfDF[groups==i,]
+  
+  train.st = data.frame(scale(train))
+  means = colMeans(train); sds = apply(train,2,sd)
+  test.st = data.frame(scale(test,center=means,scale=sds))
+  
+  model = glm(formula=rainFormula,data=train.st)
+  pred = predict(model,test.st)
+  linearRMSE = sqrt(sum((pred-test.st$rainf.sg)^2)/length(test.st))
+  linearRSQ = rsquarer(test.st$rainf.sg,pred)
+  
+  # net = neuralnet(formula=rainFormula,
+  #                 data=train.st,
+  #                 #act.fct='logistic',
+  #                 hidden=c(6),
+  #                 algorithm="sag",
+  #                 stepmax=1e+08,
+  #                 linear.output=FALSE)
+  # 
+  # pred = predict(object=net,newdata=test.st)[,1]
+  # nnRMSE = sqrt(sum((pred-test.st$rainf.sg)^2/length(test.st)))
+  # nnRSQ = rsquarer(test.st$rainf.sg,pred)
+  # 
+  # xgb = xgboost(data = as.matrix(train.st[,2:5]), label = train.st[,1], params = params,  nrounds = 100)
+  # pred = predict(xgb,as.matrix(test.st[,2:5]))
+  # xgbRMSE = sqrt(sum((pred-test.st$rainf.sg)^2/length(test.st)))
+  # xgbRSQ = rsquarer(test.st$rainf.sg,pred)
+  
+  # rf = randomForest(rainFormula,data=train.st)
+  # pred = predict(rf,newdata=test.st)
+  # rfRMSE = sqrt(sum((pred-test.st$rainf.sg)^2/length(test.st)))
+  # rfRSQ = rsquarer(test.st$rainf.sg,pred)
+
+  return(c(linearRMSE,linearRSQ))#,nnRMSE,nnRSQ,rfRMSE,rfRSQ,xgbRMSE,xgbRSQ))
+})
+
+results = data.frame(t(results))
+colnames(results) = c('linearrmse','linearrsq')#,'nnrmse','nnrsq','rfRMSE','rfRSQ','xgbRMSE','xgbRSQ')
+colMeans(results)
+
+```
+
+
+```{r}
+
+satFormula = (sat.sg ~ sst.pcf*substemp.pcf+okla.pcf+wind.pcf)
+
+timeshiftedSATDF = timeshiftedSATDF[sample(n),]
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','satFormula','timeshiftedSATDF','groups','randomForest','xgboost','params','rsquarer'))
+results = parSapply(cl, 1:k, function(i) {
+  train = timeshiftedSATDF[groups!=i,]
+  test = timeshiftedSATDF[groups==i,]
+  
+  train.st = data.frame(scale(train))
+  means = colMeans(train); sds = apply(train,2,sd)
+  test.st = data.frame(scale(test,center=means,scale=sds))
+  
+  model = glm(formula=satFormula,data=train.st)
+  pred = predict(model,test.st)
+  #linearRMSE = sqrt((pred-test.st$sat.sg)^2)
+  linearRMSE = sqrt(sum((pred-test.st$sat.sg)^2)/length(test.st))
+  linearRSQ = rsquarer(test.st$sat.sg,pred)
+  #linearResult = with(summary(model), 1 - deviance/null.deviance)
+  
+  net = neuralnet(formula=satFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=c(4),
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=FALSE)
+  
+  pred = predict(object=net,newdata=test.st)[,1]
+  nnRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  nnRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  xgb = xgboost(data = as.matrix(train.st[,2:5]), label = train.st[,1], params = params,  nrounds = 100)
+  pred = predict(xgb,as.matrix(test.st[,2:5]))
+  xgbRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  xgbRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  rf = randomForest(satFormula,data=train.st)
+  pred = predict(rf,newdata=test.st)
+  rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  rfRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  rnn = trainr(Y=train.st[,1],X=train.st[,2:5],learningrate=1)
+  pred = predictr(rnn,X=test.st[,2:5])
+  rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  rfRSQ = rsquarer(test.st$sat.sg,pred)
+  
+
+  return(c(linearRMSE,linearRSQ,nnRMSE,nnRSQ,rfRMSE,rfRSQ,xgbRMSE,xgbRSQ))
+})
+
+results = data.frame(t(results))
+colnames(results) = c('linearrmse','linearrsq','nnrmse','nnrsq','rfRMSE','rfRSQ','xgbRMSE','xgbRSQ')
+colMeans(results)
+
 ```
 ## Buiilding a Neural Net
 ```{r}
@@ -1103,4 +1328,154 @@ rsq.net = sapply(nets[1:(length(nets))], function(net) {
 
 rsq.glm <- rsq1(test.st$rainf.sg,preds)
 
+
+
+```{r test, eval=FALSE}
+
+train = timeshiftedRainfDF[groups!=1,]
+  test = timeshiftedRainfDF[groups==1,]
+  
+  train.st = data.frame(scale(train))
+  means = colMeans(train); sds = apply(train,2,sd)
+  test.st = data.frame(scale(test,center=means,scale=sds))
+  
+  model = glm(formula=rainFormula,data=train.st)
+  pred = predict(model,test.st)
+  linearRMSE = sqrt(sum((pred-test.st$rainf.sg)^2)/length(test.st))
+  
+  net = neuralnet(formula=rainFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=c(4,4),
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=FALSE)
+  
+  pred = predict(object=net,newdata=test.st)[,1]
+  
+## RNN
+  
+rmax_len <- 6 # the number of previous examples we'll look at
+n = nrow(timeshiftedRainfDF)
+
+start_indexes = seq(1,n-max_len+1,by=1)
+
+X1 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),2])))
+X2 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),3])))
+X3 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),4])))
+X4 = t(sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),5])))
+X = data.frame(cbind(X1,X2,X3,X4))
+
+Y = data.frame(Y=timeshiftedRainfDF[6:n,1])
+
+df = cbind(Y,X)
+
+train = df[1:100,]
+test = df[101:131,]
+  
+train.st = data.frame(scale(train))
+means = colMeans(train); sds = apply(train,2,sd)
+test.st = data.frame(scale(test,center=means,scale=sds))
+
+net = neuralnet(formula = Y~.,
+          data = df,
+          hidden=c(6),
+          algorithm="rprop+",
+          stepmax=1e+08,
+          linear.output=TRUE)
+
+pred = predict(object=net,newdata=test.st)[,1]
+
+compare = data.frame(pred=pred,obs=test$Y)
+
+## RNN END
+
+
+Y = array(,dim=c(6,129,1))
+Y[,,1] = sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),1]))
+
+rnn = trainr(Y=Y,X=X,learningrate=1)
+pred = predictr(rnn,X=X)
+
+
+X = array(,dim=c(6,129,1))
+X[,,1] = sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),2]))
+
+Y = array(,dim=c(6,129,1))
+Y[,,1] = sapply(start_indexes, function(i) return(timeshiftedRainfDF[i:(i+max_len-1),1]))
+
+rnn = trainr(Y=Y,X=X,learningrate=1,numepochs=10)
+pred = predictr(rnn,X=X)
+
+
+
 ```
+
+
+```{r enso_test}
+
+#monthly data from 1/1979 to 03/2023
+ensoIndex = read.csv('data/meiv2.csv',sep=",",header=F)
+startIndex = (1982-1979)*12+1; endIndex = (2023-1979)*12
+
+#i want only 1/1982 to 12/2022
+ensoIndex = ensoIndex[startIndex:endIndex]
+
+ensoPos = ensoIndex>=0
+ensoNeg = ensoIndex<0
+
+
+#find enso variable: split sg rainfall and SAT into 2 groups based on enso>0 or enso<0
+
+ensoPos_sgRainf = rainf.anom$anom[ensoPos]
+ensoNeg_sgRainf = rainf.anom$anom[ensoNeg]
+
+ensoPos_sgSAT = sat.anom$anom[ensoPos]
+ensoNeg_sgSAT = sat.anom$anom[ensoNeg]
+
+#then welch 2-sample test to see if got effect
+var.test(ensoPos_sgRainf, ensoNeg_sgRainf)
+
+#p-value ~0.5, can be considered same variance?
+t.test(ensoPos_sgRainf, ensoNeg_sgRainf,var.equal=TRUE)
+
+#then welch 2-sample test to see if got effect
+var.test(ensoPos_sgSAT, ensoNeg_sgSAT)
+
+#p-value ~0.5, can be considered same variance?
+t.test(ensoPos_sgSAT, ensoNeg_sgSAT,var.equal=FALSE)
+
+
+
+# 
+# 
+# ensoPos = ensoIndex>=0.3
+# ensoNeg = ensoIndex<=-0.3
+# 
+# 
+# #find enso variable: split sg rainfall and SAT into 2 groups based on enso>0 or enso<0
+# 
+# ensoPos_sgRainf = rainf.anom$anom[ensoPos]
+# ensoNeg_sgRainf = rainf.anom$anom[ensoNeg]
+# 
+# ensoPos_sgSAT = sat.anom$anom[ensoPos]
+# ensoNeg_sgSAT = sat.anom$anom[ensoNeg]
+# 
+# # histogram(ensoPos_sgRainf)
+# 
+# 
+# #then welch 2-sample test to see if got effect
+# var.test(ensoPos_sgRainf, ensoNeg_sgRainf)
+# 
+# #p-value ~0.5, can be considered same variance?
+# t.test(ensoPos_sgRainf, ensoNeg_sgRainf,var.equal=FALSE)
+# 
+# 
+# #then welch 2-sample test to see if got effect
+# var.test(ensoPos_sgSAT, ensoNeg_sgSAT)
+# 
+# #p-value ~0.5, can be considered same variance?
+# t.test(ensoPos_sgSAT, ensoNeg_sgSAT,var.equal=FALSE)
+
+```
+
