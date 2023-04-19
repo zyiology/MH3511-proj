@@ -6,6 +6,27 @@ output: html_document
 ---
 
 ## R Markdown
+Table of Contents
+1. Introduction
+2. Data description
+3. Cleaning datasets
+  - 3.1 Summary Stats of each var (up to 3.1.6)
+    -> 3.1.1: SAT
+      > Hist
+      > Boxplot
+  - 3.2 Compiled Data set for analysis
+    -> 3.2.1 Timeshifted data (not normalised, for modelling)
+    -> 3.2.2 ANOVA/T-test data (normalised)
+4. Statistical Analysis
+  - 4.1 ANOVA
+  - 4.2 F-test/t-test
+5. Linear regression
+6. Conclusion
+7. Appendix
+8. References
+  
+
+  
 
 ## Set up
 ```{r}
@@ -20,8 +41,10 @@ library(gridExtra)
 library(ncdf4)
 library(tibbletime)
 library(GGally)
+library(tseries)
 library(forecast)
-
+library(pracma)
+library(car)
 ```
 
 ## Reading Data (what data is this)
@@ -112,6 +135,16 @@ qqnorm(sat$mean_temp, pch = 1, frame = FALSE)
 qqline(sat$mean_temp, col = "steelblue", lwd = 2)
 
 
+adf.test(sat$mean_temp) #if p < 0.05, reject, stationary
+kpss.test(sat$mean_temp) #if p < 0.05, reject, not stationary
+
+#Case 1: Both tests conclude that the series is not stationary -> series is not stationary
+#Case 2: Both tests conclude that the series is stationary -> series is stationary
+#Case 3: KPSS = stationary and ADF = not stationary  -> trend stationary, remove the trend to make series strict stationary
+#Case 4: KPSS = not stationary and ADF = stationary -> difference stationary, use differencing to make series stationary
+
+# Case4: Use differencing for sat
+
 ```
 From the boxplot, histogram, and qqplot, we can conclude that the dataset for average monthly surface air temperature is normally distributed, and thus does not require any transformation.
 
@@ -185,6 +218,16 @@ ggplot(rainf) +
   theme_minimal() +
   ggtitle("Plot showing Total monthly rainfall against Time")
 
+adf.test(rainf$total_rainfall) #if p < 0.05, reject, stationary
+kpss.test(rainf$total_rainfall) #if p < 0.05, reject, not stationary
+
+#Case 1: Both tests conclude that the series is not stationary -> series is not stationary
+#Case 2: Both tests conclude that the series is stationary -> series is stationary
+#Case 3: KPSS = stationary and ADF = not stationary  -> trend stationary, remove the trend to make series strict stationary
+#Case 4: KPSS = not stationary and ADF = stationary -> difference stationary, use differencing to make series stationary
+
+# Case4: Use differencing for rainf
+
 ```
 
 
@@ -234,6 +277,8 @@ sst <- read.table('C:/Users/ancel/Downloads/sstoi.indices.txt',header=T)
 sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
                         sst = sst$NINO3.4)
 
+sst.n34 <- sst.n34[!duplicated(sst.n34$month),]
+
 sst.hist <- ggplot(data=sst.n34, aes(x=sst))+
   geom_histogram(color='black',bins=50)+
   xlab('SST')+
@@ -265,9 +310,19 @@ opbins_sst <- 1 + 3.322 * log(nrow(sst.n34))
 
 ggplot(sst.n34)+
   geom_histogram(aes(x=sst),bins = opbins_sst)
+zz
+#qqnorm(sst.n34$sst, pch = 1, frame = FALSE)
+#qqline(sst.n34$sst, col = "steelblue", lwd = 2)
 
-qqnorm(sst.n34$sst, pch = 1, frame = FALSE)
-qqline(sst.n34$sst, col = "steelblue", lwd = 2)
+adf.test(sst.n34$sst) #if p < 0.05, reject, stationary
+kpss.test(sst.n34$sst) #if p < 0.05, reject, not stationary
+
+#Case 1: Both tests conclude that the series is not stationary -> series is not stationary
+#Case 2: Both tests conclude that the series is stationary -> series is stationary
+#Case 3: KPSS = stationary and ADF = not stationary  -> trend stationary, remove the trend to make series strict stationary
+#Case 4: KPSS = not stationary and ADF = stationary -> difference stationary, use differencing to make series stationary
+
+# Case2: stationary, no mods needed for sst
 
 ```
 
@@ -388,6 +443,9 @@ ninoAreaMean = function(index) {
 #get the means corresponding to reference period
 refPeriodValues = sapply(startMonth:endMonth, ninoAreaMean)
 
+#all wind values in one col
+allWind <- sapply(((1980-1800)*12+1):((2023-1800)*12),ninoAreaMean)
+
 #calculate a baseline temperature for each month based on the reference period
 monthlyRefMeans = sapply(1:12,function(i) {
   monthValues = refPeriodValues[seq(i,length(refPeriodValues),12)]
@@ -401,6 +459,7 @@ startMonth = (2011-1800)*12+1 #2011/01
 endMonth = (2023-1800)*12 #2022/12
 periodValues = sapply(startMonth:endMonth, ninoAreaMean)
 periodAnomalies = periodValues - rep(monthlyRefMeans,(2023-2011))
+
 
 datetime_wind <- as.Date(time, origin="1800-01-01")
 
@@ -419,8 +478,19 @@ opbins_wind <- 1 + 3.322 * log(nrow(df_wind))
 ggplot(df_wind)+
   geom_histogram(aes(x=periodAnomalies),bins = opbins_wind)
 
-qqnorm(df_wind$periodAnomalies, pch = 1, frame = FALSE)
-qqline(df_wind$periodAnomalies, col = "steelblue", lwd = 2)
+#qqnorm(df_wind$periodAnomalies, pch = 1, frame = FALSE)
+#qqline(df_wind$periodAnomalies, col = "steelblue", lwd = 2)
+
+adf.test(allWind) #if p < 0.05, reject, stationary
+kpss.test(allWind) #if p < 0.05, reject, not stationary
+
+#Case 1: Both tests conclude that the series is not stationary -> series is not stationary
+#Case 2: Both tests conclude that the series is stationary -> series is stationary
+#Case 3: KPSS = stationary and ADF = not stationary  -> trend stationary, remove the trend to make series strict stationary
+#Case 4: KPSS = not stationary and ADF = stationary -> difference stationary, use differencing to make series stationary
+
+# Case4: stationary, differencing for wind
+
 
 ```
 
@@ -510,24 +580,34 @@ substemp.all <- sapply(1:length(substemp),function(j){
     
 })
 
-substemp.all.df <- data.frame(substemp = c(substemp.all))
+substemp.all.df <- data.frame(substemp = c(substemp.all)) #561924 NA values
 
 substemp.all.df <- substemp.all.df - 273.15
 
 substemp.all.df <- data.frame(substemp=na.interp(substemp.all.df)) #interp na values
 
-opbins_sub <- 1 + 3.322 * log(nrow(substemp.all.df))
 
-ggplot(data=substemp.all.df, aes(x=substemp))+
-  geom_histogram(color='black',bins=opbins_sub)+
+#opbins_sub <- 1 + 3.322 * log(nrow(substemp.all.df))
+
+#ggplot(data=substemp.all.df, aes(x=substemp))+
+#  geom_histogram(color='black',bins=opbins_sub)+
+#  xlab('Sub Surf Temp')+
+#  ylab('Frequency')+
+#  ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
+
+rm(substemp.all) #remove substemp.all to save space
+
+substemp.hist <- ggplot(data=substemp.all.df, aes(x=substemp))+
+  geom_histogram(color='black',bins=100)+
   xlab('Sub Surf Temp')+
   ylab('Frequency')+
   ggtitle('Pacific monthly Sub Surface Temp data from Jan 1980 to Feb 2023')
+  
+substemp.hist #Super weird shape
 
 boxplot(substemp.all.df$substemp, 
         main = 'Pacific monthly Sub surface temp data from Jan 1980 to Feb 2023',
         ylab = 'Sub Surf Temp')
-
 
 #finding the mean temp at each month and each year
 substemp.mean <- sapply(1:length(substemp),function(j){
@@ -537,16 +617,24 @@ substemp.mean <- sapply(1:length(substemp),function(j){
     #finding all the temperature data
     data.temp <- (ncvar_get(substemp[[j]][[n]],'temperature'))
     
+    data.temp <- data.temp[190:240,78:88,]
+    
+    data.temp.interp <- zoo::na.approx(data.temp)
+    
     #mean the monthly temp in the area of interest, lon 190-240 (-170,-120), lat 78-88 (-5,5)
-    month.temp <- mean(data.temp[190:240,78:88,],na.rm=T)
+    month.temp <- mean(data.temp.interp)
     #temp <- data.temp[190:240,78:88,]
   
 })
     
 })
 
+rm(substemp) #remove substemp to save space
+
 #convert celsius
 substemp.mean <- substemp.mean-273.15
+
+substemp.mean <- c(substemp.mean)
 
 # start from 32 because that corresponds to 2011. Columns are years
 substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
@@ -564,7 +652,15 @@ substemp.anom <- sapply(32:ncol(substemp.mean),function(c){
 #turn matrix to vector for ease of access
 substemp.anom.vec <- as.vector(substemp.anom)
 
+adf.test(substemp.anom.vec) #if p < 0.05, reject, stationary
+kpss.test(substemp.anom.vec) #if p < 0.05, reject, not stationary
 
+#Case 1: Both tests conclude that the series is not stationary -> series is not stationary
+#Case 2: Both tests conclude that the series is stationary -> series is stationary
+#Case 3: KPSS = stationary and ADF = not stationary  -> trend stationary, remove the trend to make series strict stationary
+#Case 4: KPSS = not stationary and ADF = stationary -> difference stationary, use differencing to make series stationary
+
+# Case3: remove trend for substemp
 
 ```
 
@@ -678,6 +774,9 @@ cloudiness[cloudiness==fillvalue$value] <- NA
 # Convert the number of hours to POSIXct format, specifying the origin as "1800-01-01"
 datetime <- as.Date(time, origin="1979-01-01")
 
+id.cloud <- which(datetime >= '1982-01-01' & datetime < '2022-01-1')
+cloud.data <- cloudiness[1,1,id.cloud]
+
 lat_range <- c(-5, 5)
 lon_range <- c(190, 240)
 
@@ -709,6 +808,16 @@ ggplot(lat)+
   theme_minimal() +
   ggtitle("Plot showing OLR against Time")
 
+adf.test(lat) #if p < 0.05, reject, stationary
+kpss.test(lat) #if p < 0.05, reject, not stationary
+
+#Case 1: Both tests conclude that the series is not stationary -> series is not stationary
+#Case 2: Both tests conclude that the series is stationary -> series is stationary
+#Case 3: KPSS = stationary and ADF = not stationary  -> trend stationary, remove the trend to make series strict stationary
+#Case 4: KPSS = not stationary and ADF = stationary -> difference stationary, use differencing to make series stationary
+
+# Case4: stationary, differencing for wind
+
 ```
 
 ```{r}
@@ -725,10 +834,13 @@ ggplot(lat)+
 
 ```
 
+
 ```{r}
 
 opbins_lat <- 1 + 3.322 * log(nrow(lat))
 
+
+test <- lat[385:528,]
 ggplot(lat)+
   geom_histogram(aes(x=pacific_avg),bins = opbins_lat)+
   labs(x = 'OLR'~W/m^2, y='Frequency') +
@@ -739,8 +851,10 @@ ggplot(lat)+
 
 ```{r}
 
-qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
-qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
+#qqnorm(lat$pacific_avg, pch = 1, frame = FALSE)
+#qqline(lat$pacific_avg, col = "steelblue", lwd = 2)
+=======
+test_anomoly = test[,1] - rep(monthly_means,12)
 
 ```
 From the boxplot, histogram, and qqplot, we can observe a distinct right skewed distribution of the datapoints, indicating the presence of very large outliers. We can consider excluding these points or subjecting the dataset to a log, sqrt, or normalize transformation. 
@@ -787,22 +901,99 @@ ggpairs(enso.df.nd,columns = 1:ncol(enso.df.nd),
         theme(axis.text.x = element_text(angle=90),
               axis.text = element_text(size=7))
 
+#Stat tests
+enso.df.t1 <- enso.df[which(enso.df$month < '2017-01-01'),] #half of data
+enso.df.t2 <- enso.df[which(enso.df$month >='2017-01-01'),]
+
+#t test for anomaly
+t.test.results <- sapply(2:ncol(enso.df.t1),function(i){
+  
+  t.test(enso.df.t1[,i],enso.df.t2[,i],paired=F)})
+
+colnames(t.test.results) <- colnames(enso.df.nd)
+
+#ANOVA
+#all data for 1982-2022 only.
+all.data <- data.frame(month = sat[1:480,1],
+                      sat.sg=sat[1:480,2],
+                      rainf.sg=rainf[1:480,2],
+                      sst.pcf=sst.n34[1:480,2],
+                      substemp.pcf=substemp.mean[25:504],
+                      okla.pcf=cloud.data,
+                      wind.pcf=allWind[25:504])
+
+all.data$decade <- factor(c(rep(1,120),
+                         rep(2,120),
+                         rep(3,120),
+                         rep(4,120)))
+
+var.sat<-leveneTest(sat.sg~decade,data=all.data) #p > 0.05 so var are same (H0: var is same)
+aov.sat <- summary(aov(sat.sg ~ decade, data=all.data))
+p.sat <- aov.sat[[1]]$`Pr(>F)`[1]
+
+var.rainf<-leveneTest(rainf.sg~decade,data=all.data) #p > 0.05 so var are same (H0: var is same)
+aov.rainf <- summary(aov(rainf.sg ~ decade, data=all.data))
+p.rainf <- aov.rainf[[1]]$`Pr(>F)`[1]
+
+var.sst<-leveneTest(sst.pcf~decade,data=all.data) #p > 0.05 so var are same (H0: var is same)
+aov.sst <- summary(aov(sst.pcf ~ decade, data=all.data))
+p.sst <- aov.sst[[1]]$`Pr(>F)`[1]
+
+var.substemp<-leveneTest(substemp.pcf~decade,data=all.data) #p > 0.05 so var are same (H0: var is same)
+aov.substemp <- summary(aov(substemp.pcf ~ decade, data=all.data))
+p.substemp <- aov.substemp[[1]]$`Pr(>F)`[1]
+
+var.okla<-leveneTest(okla.pcf~decade,data=all.data) #p > 0.05 so var are same (H0: var is same)
+aov.okla <- summary(aov(okla.pcf ~ decade, data=all.data))
+p.okla <- aov.okla[[1]]$`Pr(>F)`[1]
+
+var.wind<-leveneTest(wind.pcf~decade,data=all.data) #p > 0.05 so var are same (H0: var is same)
+aov.wind <- summary(aov(wind.pcf ~ decade, data=all.data))
+p.wind <-aov.wind[[1]]$`Pr(>F)`[1]
+
+# since p values of sat, sst, wind <0.05, we cannot rej H0. ie the means are different across decadal time scales. Therefore, in order to analyse enso trend, we will need more data to capture the variations better as a sample size of 5 decades are clearly insufficient to fully capture the variations.
+
 ```
 
+# Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
+#``r
+#cor(rainf.anom[,2], test_anomoly)
+#cor(sat.anom[,2], test_anomoly)
+#cors = rep(0,11)
+
+#for (i in -12:0) {
+#  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+#                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
+#  cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
+#}
+#
+#cors2 = rep(0,11)
+#for (i in -12:0) {
+#  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+#                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
+#  cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
+#}
+
+
+```
 ## Correlating cloudiness anomaly of 2011-2023 to Singapore anomaly (Rainfall and temeprature)
 ```{r}
 
 cor(rainf.anom[,2], test_anomoly)
 
+rainf.anom
+
 cor(sat.anom[,2], test_anomoly)
 
 cors = rep(0,11)
-
 for (i in -12:0) {
   df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
+
                         sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
+
+timeShiftCloudSAT = which.max(abs(cors))
 
 cors2 = rep(0,11)
 for (i in -12:0) {
@@ -811,6 +1002,105 @@ for (i in -12:0) {
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
 
+timeShiftCloudRainf = which.max(abs(cors2))
+```
+## Timeshifting our data
+```{r}
+
+#enso.df
+
+maxshift = max(c(timeShiftWindRainf,
+                 timeShiftWindSAT,
+                 best.ts.substemp.rainf,
+                 timeShiftCloudSAT,
+                 timeShiftCloudRainf))
+
+n = nrow(enso.df)
+
+timeshiftedRainfDF = data.frame(rainf.sg = enso.df$rainf.sg[(1+maxshift):n],
+                                sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted
+                                substemp.pcf = enso.df$substemp.pcf[(1+(maxshift-best.ts.substemp.rainf)):(n-best.ts.substemp.rainf)],
+                                okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudRainf):(n-timeShiftCloudRainf)],
+                                wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindRainf):(n-timeShiftWindRainf)])
+
+                                
+timeshiftedSATDF = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
+                              sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted,
+                              substemp.pcf = enso.df$substemp.pcf[(1+maxshift):n],#not timeshifted
+                              okla.pcf = enso.df$okla.pcf[(1+maxshift-timeShiftCloudSAT):(n-timeShiftCloudSAT)],
+                              wind.pcf = enso.df$wind.pcf[(1+maxshift-timeShiftWindSAT):(n-timeShiftWindSAT)])
+
+
+ggpairs(timeshiftedSATDF,columns = 1:ncol(timeshiftedSATDF),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
+
+
+ggpairs(timeshiftedRainfDF,columns = 1:ncol(timeshiftedRainfDF),
+        upper = list(continuous = 'cor', combo = "box_no_facet"),
+        lower = list(continuous = wrap(lowerFn, method='lm')),
+        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
+        title='Distribution and Correlation of Predictor Variables')+
+        theme(axis.text.x = element_text(angle=90),
+              axis.text = element_text(size=7))
+```
+## Buiilding a Neural Net
+```{r}
+
+library(parallel)
+library(neuralnet)
+
+rainFormula = (rainf.sg ~ sst.pcf+substemp.pcf+okla.pcf+wind.pcf)
+satFornula = (sat.sg ~ sst.pcf+substemp.pcf+okla.pcf+wind.pcf)
+
+train = timeshiftedRainfDF[1:100,]
+test = timeshiftedRainfDF[101:136,]
+
+train.st = data.frame(scale(train))
+
+means = colMeans(train); sds = apply(train,2,sd)
+
+test.st = scale(test,center=means,scale=sds)
+
+model = glm(formula=rainFormula,
+    data=train)
+
+preds = predict(model,test)
+
+df = data.frame(preds = preds,
+           obs = test$rainf.sg)
+
+
+#parallelize training of multiple models (initial weights are randomized)
+numCores = detectCores()
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','rainFormula','train.st'))
+nets = parLapply(cl,1:(12), function(i) {
+  net = neuralnet(formula=rainFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=5,
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=F)
+})
+stopCluster(cl)
+
+test.st <- data.frame(test.st)
+
+rsq.fn <- function (x, y) cor(x, y) ^ 2
+
+rsq.net = sapply(nets[1:(length(nets))], function(net) {
+  pred = predict(object=net,newdata=test.st)[,1]
+  rsq.fn(test.st$rainf.sg,pred)
+  
+})
+
+
+rsq.glm <- rsq1(test.st$rainf.sg,preds)
 
 ```
-
