@@ -76,6 +76,14 @@ monthly <- group_by(data,month = lubridate::floor_date(date, 'month'))
 
 ## Reading SG Surface Air Temp data   
 ```{r}
+#creating a time vector for the period of data we will use. 1982-2022 (41 years)
+time.all <- seq(as.Date('1982-01-01'),as.Date('2022-12-01'),by='month')
+
+#creating a time vector for the study period we will use. 2011-2022 (12 years)
+time.study <- seq(as.Date('2011-01-01'),as.Date('2022-12-01'),by='month')
+
+#creating a time vector for the reference period we will use. 1982-2010 (29 years)
+time.ref <- seq(as.Date('1982-01-01'),as.Date('2010-12-01'),by='month')
 
 sat.all <- read.csv('data/surface-air-temperature-monthly-mean.csv')
 
@@ -176,7 +184,7 @@ rainf.all <- read.csv('data/rainfall-monthly-total.csv')
 rainf.all[,1]<-as.Date(paste(rainf.all[,1], "-01", sep=""))
 
 #getting reference range for rainfall..
-rainf.refVal <- rainf[rainf.all$month >= as.Date('1982-01-01') & rainf.all$month <= as.Date('2010-12-31')]
+rainf.refVal <- rainf.all$total_rainfall[rainf.all$month >= as.Date('1982-01-01') & rainf.all$month <= as.Date('2010-12-31')]
 
 #calculate avg rainf/month in ref period to act as a baseline for anomalies..
 rainf.baseline<- sapply(1:12, function(i){
@@ -284,12 +292,12 @@ From the boxplot, histogram, and qqplot, we can observe a distinct right skewed 
 ```{r}
 
 #read sst data
-sst.all <- read.table('data/sstoi.indices.txt',header=T)
+sst <- read.table('data/sstoi.indices.txt',header=T)
 
-sst.n34 <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
+sst.all <- data.frame(month = as.Date(paste(sst$YR,sst$MON,'01',sep='-')),
                         sst = sst$NINO3.4)
 
-sst.all <- sst.n34[!duplicated(sst.n34$month),]
+sst.all <- sst.all[!duplicated(sst.all$month),]
 
 sst.hist <- ggplot(data=sst.all, aes(x=sst))+
   geom_histogram(color='black',bins=50)+
@@ -326,8 +334,8 @@ ggplot(sst.all)+
 #qqnorm(sst.n34$sst, pch = 1, frame = FALSE)
 #qqline(sst.n34$sst, col = "steelblue", lwd = 2)
 
-adf.test(sst.n34$sst) #if p < 0.05, reject, stationary
-kpss.test(sst.n34$sst) #if p < 0.05, reject, not stationary
+adf.test(sst.all$sst) #if p < 0.05, reject, stationary
+kpss.test(sst.all$sst) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -360,35 +368,35 @@ sst.studyAnom <- sst.studyVal - rep(sst.baselines,(144/12))
 
 ## Plotting scatter plots of SST with SG SAT and Rainfall
 ```{r}
-df_plot <- data.frame(date = sst.anom$month,
-                      sst_anom = sst.anom$anom,
-                      sat_anom=sat.anom$anom,
-                      rainf_anom=rainf.anom$anom)
+df_plot <- data.frame(date = time.study,
+                      sst.studyAnom = sst.studyAnom,
+                      sat.studyAnom=sat.studyAnom,
+                      rainf.studyAnom=rainf.studyAnom)
 
 #calculate correlation
-sst.sat.corr <- cor(df_plot$sst_anom,df_plot$sat_anom)
-sst.rainf.corr <- cor(df_plot$sst_anom,df_plot$rainf_anom)
+sst.sat.corr <- cor(df_plot$sst.studyAnom,df_plot$sat.studyAnom)
+sst.rainf.corr <- cor(df_plot$sst.studyAnom,df_plot$rainf.studyAnom)
 
 df_corr <- data.frame(sst.sat.corr,sst.rainf.corr)
 
 print(df_corr)
 
 #scatter plots
-ggplot(df_plot,aes(x=rainf_anom))+
-  geom_point(aes(y=sst_anom,color='sst.rainf'))+
+ggplot(df_plot,aes(x=rainf.studyAnom))+
+  geom_point(aes(y=sst.studyAnom,color='sst.rainf'))+
   scale_color_manual(values=c('sst.rainf'='pink'))+
   ggtitle('Monthly SG rainfall anomaly againt SST anomaly from Jan 2011- Dec 2022')
 
-ggplot(df_plot,aes(x=sat_anom))+
-  geom_point(aes(y=sst_anom,color='sst.sat'))+
+ggplot(df_plot,aes(x=sat.studyAnom))+
+  geom_point(aes(y=sst.studyVal,color='sst.sat'))+
   scale_color_manual(values=c('sst.sat'='lightblue'))+
   ggtitle('Monthly SG SST anomaly againt SST anomaly from Jan 2011- Dec 2022')
 
 # timeshifting to find best correlation for sst & sg sat, consider only forward shift since we using pacific data to predict sg data
 corr.ts.sat.sst <- sapply(1:12,function(i){
   
-  ts.sst <- sst.anom[i:nrow(sst.anom),2]
-  ts.sat <- sat.anom[1:(nrow(sst.anom)-i+1),2]
+  ts.sst <- sst.studyAnom[i:length(sst.studyAnom)]
+  ts.sat <- sat.studyAnom[1:(length(sat.studyAnom)-i+1)]
   cor.ts <- cor(ts.sst,ts.sat)
   month.cor <- c(i,cor.ts)
   return (month.cor)
@@ -402,8 +410,8 @@ sst.timeshift.sat <- which.max(abs(corr.ts.sat.sst.df$corr.sst.sat)) -1
 # timeshifting to find best correlation for sst & sg rainf, consider only forward shift since we using pacific data to predict sg data
 corr.ts.rainf.sst <- sapply(1:12,function(i){
   
-  ts.sst <- sst.anom[i:nrow(sst.anom),2]
-  ts.rainf <- rainf.anom[1:(nrow(rainf.anom)-i+1),2]
+  ts.sst <- sst.studyAnom[i:length(sst.studyAnom)]
+  ts.rainf <- rainf.studyAnom[1:(length(rainf.studyAnom)-i+1)]
   cor.ts <- cor(ts.sst,ts.rainf)
   month.cor <- c(i,cor.ts)
   return (month.cor)
@@ -423,7 +431,7 @@ sst.timeshift.rainf <- which.max(abs(corr.ts.rainf.sst.df$corr.sst.rainf))
 wind.nc = nc_open('data/wspd.mean.nc')
 
 #3D array, lat, lon, time dimensions
-wind.data = ncvar_get(winddata, 'wspd')
+wind.data = ncvar_get(wind.nc, 'wspd')
 
 #calculating baseline values from 1980-2010
 wind.time = ncvar_get(wind.nc,"time") #data starts from 1800/01, end at 2023/01
@@ -443,15 +451,15 @@ wind.ninoArea = function(index) {
 }
 
 #all wind values
-wind.all = lapply(((1980-1800)*12+1):((2023-1800)*12),wind.ninoArea)
+wind.all = lapply(((1982-1800)*12+1):((2023-1800)*12),wind.ninoArea)
 wind.allDF = data.frame(values=as.vector(do.call(rbind,wind.all)))
 
 ggplot(data=wind.allDF) +
   geom_histogram(aes(x=values),bins=30)
 
-wind.allMeans = sapply(allWind, mean)
+wind.allMeans = sapply(wind.all, mean)
 
-wind.endRefIndex = ((2011-1980)*12)
+wind.endRefIndex = ((2011-1982)*12)
 #get the means corresponding to reference period
 wind.refVal = wind.allMeans[1:wind.endRefIndex]#sapply(startMonth:endMonth, ninoAreaMean)
 
@@ -466,8 +474,7 @@ wind.baselines = sapply(1:12,function(i) {
 wind.studyVal = wind.allMeans[(wind.endRefIndex+1):length(wind.allMeans)]
 wind.studyAnom = wind.studyVal - rep(wind.baselines,(2023-2011))
 
-wind.studyDatetime <- as.Date(time, origin="1800-01-01")
-wind.studyDF <- data.frame(wind.studyAnom, month=wind.studyDatetime[2534:2677])
+wind.studyDF <- data.frame(wind.studyAnom, month=time.study)
 
 ggplot(wind.studyDF) + 
   geom_point(aes(x=month, y = wind.studyAnom)) + 
@@ -485,8 +492,8 @@ ggplot(wind.studyDF)+
 #qqnorm(df_wind$periodAnomalies, pch = 1, frame = FALSE)
 #qqline(df_wind$periodAnomalies, col = "steelblue", lwd = 2)
 
-adf.test(wind.allDF) #if p < 0.05, reject, stationary
-kpss.test(wind.allDF) #if p < 0.05, reject, not stationary
+adf.test(wind.allDF$values) #if p < 0.05, reject, stationary
+kpss.test(wind.allDF$values) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -504,8 +511,8 @@ time shift for wind anomaly and sg sat anomaly
 cors = rep(0,13)
 for (i in 0:12) {
   windanomaly = wind.studyAnom[1:(144-i)] #1:144 to 1:132
-  sat_anom = sat.anom$anom[(1+i):(144)] #1:144 to 13:144
-  cors[i]=cor(wind.studyAnom,sat_anom)
+  sat_anom = sat.studyAnom[(1+i):(144)] #1:144 to 13:144
+  cors[i]=cor(windanomaly,sat_anom)
 }
 
 corsDF = data.frame(cors = cors, x = 0:12)
@@ -524,8 +531,8 @@ wind.timeshift.sat = which.max(abs(cors))
 
 cors = rep(0,13)
 for (i in 0:12) {
-  windanomaly = periodAnomalies[1:(144-i)] #1:144 to 1:132
-  rainf_anom = rainf.anom$anom[(1+i):(144)] #1:144 to 13:144
+  windanomaly = wind.studyAnom[1:(144-i)] #1:144 to 1:132
+  rainf_anom = rainf.studyAnom[(1+i):(144)] #1:144 to 13:144
   cors[i]=cor(windanomaly,rainf_anom)
 }
 
@@ -651,9 +658,9 @@ substemp.baselines <- sapply(1:nrow(substemp.refVal),function(i){
 })
 
 #calc studyAnom
-substemp.studyAnom <- substemp.studyVal-rep(substemp.baselines,(2022-2011+1))
+substemp.studyAnom <- c(substemp.studyVal-rep(substemp.baselines,(2022-2011+1)))
 
-substemp.histAnom <- ggplot(data=data.frame(x=c(substemp.studyAnom)),
+substemp.histAnom <- ggplot(data=data.frame(x=substemp.studyAnom),
                             aes(x=x))+
                  geom_histogram(color='black', bins=50)+
                  ggtitle('Monthly Sub Surf Temp Anomaly in Pacific (2011-2022)')+
@@ -661,12 +668,12 @@ substemp.histAnom <- ggplot(data=data.frame(x=c(substemp.studyAnom)),
 
 substemp.histAnom
 
-substemp.boxAnom <- boxplot(c(substemp.studyAnom),
+substemp.boxAnom <- boxplot(substemp.studyAnom,
                              main='Monthly Sub Surf Temp Anomaly in Pacific (2011-2022)',
                              ylab = 'Temp Anomalies (deg C)')
 
-adf.test(substemp.anom.vec) #if p < 0.05, reject, stationary
-kpss.test(substemp.anom.vec) #if p < 0.05, reject, not stationary
+adf.test(substemp.studyAnom) #if p < 0.05, reject, stationary
+kpss.test(substemp.studyAnom) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -680,9 +687,9 @@ kpss.test(substemp.anom.vec) #if p < 0.05, reject, not stationary
 ## Correlate Sub Surface temp with SG Rainfall & SAT
 ```{r}
 #set upper limit on data so reduce data length
-df_plot2 <- data.frame(substemp_anom = substemp.anom.vec,
-                      sat_anom=sat.anom[1:144,2],
-                      rainf_anom=rainf.anom[1:144,2])
+df_plot2 <- data.frame(substemp_anom=substemp.studyAnom,
+                      sat_anom=sat.studyAnom,
+                      rainf_anom=rainf.studyAnom)
 
 #calculate correlation
 subs.sat.corr <- cor(df_plot2$substemp_anom,df_plot2$sat_anom)
@@ -720,8 +727,8 @@ ggplot(df_plot2,aes(x=1:nrow(df_plot2)))+
 # timeshifting to find best correlation for substemp & sg sat, consider only forward shift since we using pacific data to predict sg data
 corr.ts.sat.substemp <- sapply(1:12,function(i){
   
-  ts.substemp <- substemp.anom.vec[i:length(substemp.anom.vec)]
-  ts.sat <- sat.anom[1:(nrow(sat.anom)-i+1),2]
+  ts.substemp <- substemp.studyAnom[i:length(substemp.studyAnom)]
+  ts.sat <- sat.studyAnom[1:(length(sat.studyAnom)-i+1)]
   cor.ts <- cor(ts.substemp,ts.sat)
   month.cor <- c(i,cor.ts)
   return (month.cor)
@@ -735,8 +742,8 @@ substemp.timeshift.sat <- which.max(abs(corr.ts.sat.substemp.df$corr.substemp.sa
 # timeshifting to find best correlation for substemp & sg rainf, consider only forward shift since we using pacific data to predict sg data
 corr.ts.rainf.substemp <- sapply(1:12,function(i){
   
-  ts.substemp <- substemp.anom.vec[i:length(substemp.anom.vec)]
-  ts.rainf <- rainf.anom[1:(nrow(rainf.anom)-i+1),2]
+  ts.substemp <- substemp.studyAnom[i:length(substemp.studyAnom)]
+  ts.rainf <- rainf.studyAnom[1:(length(rainf.studyAnom)-i+1)]
   cor.ts <- cor(ts.substemp,ts.rainf)
   month.cor <- c(i,cor.ts)
   return (month.cor)
@@ -872,8 +879,8 @@ ggplot(okla.all.mean)+
   theme_minimal() +
   ggtitle("Plot showing OLR against Time")
 
-adf.test(lat$pacific_avg) #if p < 0.05, reject, stationary
-kpss.test(lat$pacific_avg) #if p < 0.05, reject, not stationary
+adf.test(okla.studyAnom) #if p < 0.05, reject, stationary
+kpss.test(okla.studyAnom) #if p < 0.05, reject, not stationary
 
 #Case 1: Both tests conclude that the series is not stationary -> series is not stationary
 #Case 2: Both tests conclude that the series is stationary -> series is stationary
@@ -939,13 +946,13 @@ From the boxplot, histogram, and qqplot, we can observe a distinct right skewed 
 
 ## All Data, Pairs Plot (Not Time Shifted)
 ```{r message=FALSE, warning=FALSE}
-enso.df <- data.frame(month = sat.anom$month, 
-                      sat.sg=sat.anom$anom, # Normally distributed
-                      rainf.sg=rainf.anom$anom, #
-                      sst.pcf=sst.anom$anom,
-                      substemp.pcf=substemp.anom.vec,
-                      okla.pcf=test_anomoly,
-                      wind.pcf=periodAnomalies)
+enso.df <- data.frame(month = time.study, 
+                      sat.sg=sat.studyAnom, # Normally distributed
+                      rainf.sg=rainf.studyAnom, #
+                      sst.pcf=sst.studyAnom,
+                      substemp.pcf=substemp.studyAnom,
+                      okla.pcf=okla.studyAnom,
+                      wind.pcf=wind.studyAnom)
 
 enso.df.nd <- enso.df[,2:ncol(enso.df)]
 
@@ -976,14 +983,16 @@ t.test.results <- sapply(2:ncol(enso.df.t1),function(i){
 colnames(t.test.results) <- colnames(enso.df.nd)
 
 #ANOVA
-#all data for 1982-2022 only.
-all.data <- data.frame(month = sat[1:480,1],
-                      sat.sg=sat[1:480,2],
-                      rainf.sg=rainf[1:480,2],
-                      sst.pcf=sst.n34[1:480,2],
-                      substemp.pcf=substemp.mean[25:504],
-                      okla.pcf=cloud.data,
-                      wind.pcf=allWind[25:504])
+#all data for 1982-2021 only (40 years).
+all.data <- data.frame(month = time.all,
+                      sat.sg=c(sat.refVal,sat.studyVal),
+                      rainf.sg=c(rainf.refVal,rainf.studyVal),
+                      sst.pcf=c(sst.refVal,sst.studyVal),
+                      substemp.pcf=c(substemp.refVal,substemp.studyVal),
+                      okla.pcf=c(okla.refVal,okla.studyVal),
+                      wind.pcf=c(wind.refVal,wind.studyVal))
+
+all.data <- all.data[1:480,]
 
 all.data$decade <- factor(c(rep(1,120),
                          rep(2,120),
@@ -1043,16 +1052,14 @@ p.wind <-aov.wind[[1]]$`Pr(>F)`[1]
 
 ```{r}
 
-cor(rainf.anom[,2], test_anomoly)
+cor(rainf.studyAnom, okla.studyAnom)
 
-rainf.anom
-
-cor(sat.anom[,2], test_anomoly)
+cor(sat.studyAnom, okla.studyAnom)
 
 cors = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
-                        sat_anom = sat.anom$anom[(-i+1):nrow(sat.anom)])
+  df_plot <- data.frame(cloudanomaly = okla.studyAnom[1:(length(okla.studyAnom)+i)],
+                        sat_anom = sat.studyAnom[(-i+1):length(sat.studyAnom)])
   cors[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$sat_anom))
 }
 
@@ -1060,8 +1067,8 @@ okla.timeshift.sat = which.max(abs(cors))
 
 cors2 = rep(0,11)
 for (i in -12:0) {
-  df_plot <- data.frame(cloudanomaly = test_anomoly[1:(length(test_anomoly)+i)],
-                        rain_anom = rainf.anom$anom[(-i+1):nrow(rainf.anom)])
+  df_plot <- data.frame(cloudanomaly = okla.studyAnom[1:(length(okla.studyAnom)+i)],
+                        rain_anom = rainf.studyAnom[(-i+1):length(rainf.studyAnom)])
   cors2[i+11]=cor(as.numeric(df_plot$cloudanomaly),as.numeric(df_plot$rain_anom))
 }
 
@@ -1070,7 +1077,7 @@ okla.timeshift.rainf = which.max(abs(cors2))
 ```
 ## Timeshifting our data
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 #enso.df
 
@@ -1085,7 +1092,7 @@ n = nrow(enso.df)
 
 rainf.timeshift.df = data.frame(rainf.sg = enso.df$rainf.sg[(1+maxshift):n],
                                 sst.pcf = enso.df$sst.pcf[(1+maxshift):n],#not timeshifted
-                                substemp.pcf = enso.df$substemp.pcf[(1+(maxshift-best.ts.substemp.rainf)):(n-best.ts.substemp.rainf)],
+                                substemp.pcf = enso.df$substemp.pcf[(1+(maxshift-substemp.timeshift.rainf)):(n-substemp.timeshift.rainf)],
                                 okla.pcf = enso.df$okla.pcf[(1+maxshift-okla.timeshift.rainf):(n-okla.timeshift.rainf)],
                                 wind.pcf = enso.df$wind.pcf[(1+maxshift-wind.timeshift.rainf):(n-wind.timeshift.rainf)])
 
@@ -1096,23 +1103,6 @@ sat.timeshift.df = data.frame(sat.sg = enso.df$sat.sg[(1+maxshift):n],
                               okla.pcf = enso.df$okla.pcf[(1+maxshift-okla.timeshift.sat):(n-okla.timeshift.sat)],
                               wind.pcf = enso.df$wind.pcf[(1+maxshift-wind.timeshift.sat):(n-wind.timeshift.sat)])
                               
-ggpairs(sat.timeshift.df,columns = 1:ncol(sat.timeshift.df),
-        upper = list(continuous = 'cor', combo = "box_no_facet"),
-        lower = list(continuous = wrap(lowerFn, method='lm')),
-        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
-        title='Distribution and Correlation of Predictor Variables')+
-        theme(axis.text.x = element_text(angle=90),
-              axis.text = element_text(size=7))
-
-
-ggpairs(rainf.timeshift.df,columns = 1:ncol(rainf.timeshift.df),
-        upper = list(continuous = 'cor', combo = "box_no_facet"),
-        lower = list(continuous = wrap(lowerFn, method='lm')),
-        diag = list(continuous = wrap('barDiag',color='black',bins=25)),
-        title='Distribution and Correlation of Predictor Variables')+
-        theme(axis.text.x = element_text(angle=90),
-              axis.text = element_text(size=7))
-
 ggpairs(sat.timeshift.df,columns = 1:ncol(sat.timeshift.df),
         upper = list(continuous = 'cor', combo = "box_no_facet"),
         lower = list(continuous = wrap(lowerFn, method='lm')),
@@ -1196,7 +1186,7 @@ round(rsquares,4)
 ```
 
 
-```{r}
+```{r, EVAL=F}
 
 rsquarer = function(obs,pred) {
   tss = sum((obs-mean(obs))^2)
@@ -1426,7 +1416,7 @@ pred = predictr(rnn,X=X)
 ```
 
 
-```{r recurrentneuralnet}
+```{r recurrentneuralnet, EVAL=F}
 
 ## RNN
 
@@ -1479,7 +1469,7 @@ rnnRMSE;rnnRSQ
 
 ```
 
-```{r recurrentneuralnet}
+```{r recurrentneuralnet, EVAL=F}
 
 ## RNN
 
@@ -1540,11 +1530,11 @@ ensoNeg = ensoIndex<0
 
 #find enso variable: split sg rainfall and SAT into 2 groups based on enso>0 or enso<0
 
-ensoPos_sgRainf = rainf.anom$anom[ensoPos]
-ensoNeg_sgRainf = rainf.anom$anom[ensoNeg]
+ensoPos_sgRainf = rainf.studyAnom[ensoPos]
+ensoNeg_sgRainf = rainf.studyAnom[ensoNeg]
 
-ensoPos_sgSAT = sat.anom$anom[ensoPos]
-ensoNeg_sgSAT = sat.anom$anom[ensoNeg]
+ensoPos_sgSAT = sat.studyAnom[ensoPos]
+ensoNeg_sgSAT = sat.studyAnom[ensoNeg]
 
 #then welch 2-sample test to see if got effect
 var.test(ensoPos_sgRainf, ensoNeg_sgRainf)
