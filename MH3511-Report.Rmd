@@ -727,11 +727,6 @@ Before we began our project, we wanted to validate that ENSO in general has an e
 ```{r}
 #monthly data from 1/1979 to 03/2023
 ensoIndex = read.csv('data/meiv2.csv',sep=",",header=F)
-startIndex = (1982-1979)*12+1; endIndex = (2023-1979)*12
-
-#i want only 1/1982 to 12/2022
-ensoIndex = ensoIndex[startIndex:endIndex]
-
 ensoRainCor = cor(as.vector(t(ensoIndex)),rainf.studyAnom)
 paste("The correlation between ENSO Index and Rainfall Anomaly: ", ensoRainCor)
 ensoSatCor = cor(as.vector(t(ensoIndex)),sat.studyAnom)
@@ -745,6 +740,12 @@ Absolute correlation between ENSO and SAT is relatively higher, so it might be a
 To further confirm the relationship, we also split our rainfall/SAT anomaly data into 2 categories - ENSO index >=0 vs ENSO index < 0. We will compare the categories, to determine if there is a significant difference between data in the 2 categories.
 
 ```{r enso_test}
+
+startIndex = (1982-1979)*12+1; endIndex = (2023-1979)*12
+
+#i want only 1/1982 to 12/2022
+ensoIndex = ensoIndex[startIndex:endIndex]
+
 ensoPos = ensoIndex>=0
 ensoNeg = ensoIndex<0
 

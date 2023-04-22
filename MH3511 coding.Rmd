@@ -61,16 +61,15 @@ library(car)
 ## Reading Data (what data is this)
 ```{r}
 
-
 set.seed(999)
-
-data <- read.csv('data/historical-daily-weather-records.csv')
-
-head(data)
-
-data$date<-as.Date(data[,1])
-
-monthly <- group_by(data,month = lubridate::floor_date(date, 'month')) 
+# 
+# data <- read.csv('data/historical-daily-weather-records.csv')
+# 
+# head(data)
+# 
+# data$date<-as.Date(data[,1])
+# 
+# monthly <- group_by(data,month = lubridate::floor_date(date, 'month')) 
 
 ```
 
