@@ -1186,7 +1186,7 @@ round(rsquares,4)
 ```
 
 
-```{r, EVAL=F}
+```{r, eval=FALSE}
 
 rsquarer = function(obs,pred) {
   tss = sum((obs-mean(obs))^2)
@@ -1275,10 +1275,8 @@ results = parSapply(cl, 1:k, function(i) {
   
   model = glm(formula=satFormula,data=train.st)
   pred = predict(model,test.st)
-  #linearRMSE = sqrt((pred-test.st$sat.sg)^2)
   linearRMSE = sqrt(sum((pred-test.st$sat.sg)^2)/length(test.st))
   linearRSQ = rsquarer(test.st$sat.sg,pred)
-  #linearResult = with(summary(model), 1 - deviance/null.deviance)
   
   net = neuralnet(formula=satFormula,
                   data=train.st,
@@ -1301,12 +1299,6 @@ results = parSapply(cl, 1:k, function(i) {
   pred = predict(rf,newdata=test.st)
   rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
   rfRSQ = rsquarer(test.st$sat.sg,pred)
-  # 
-  # rnn = trainr(Y=train.st[,1],X=train.st[,2:5],learningrate=1)
-  # pred = predictr(rnn,X=test.st[,2:5])
-  # rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
-  # rfRSQ = rsquarer(test.st$sat.sg,pred)
-  
 
   return(c(linearRMSE,linearRSQ,nnRMSE,nnRSQ,rfRMSE,rfRSQ,xgbRMSE,xgbRSQ))
 })
@@ -1416,7 +1408,7 @@ pred = predictr(rnn,X=X)
 ```
 
 
-```{r recurrentneuralnet, EVAL=F}
+```{r recurrentneuralnet, eval=F}
 
 ## RNN
 
@@ -1469,7 +1461,7 @@ rnnRMSE;rnnRSQ
 
 ```
 
-```{r recurrentneuralnet, EVAL=F}
+```{r recurrentneuralnet, eval=F}
 
 ## RNN
 
@@ -1519,9 +1511,9 @@ rnnRMSE;rnnRSQ
 
 #monthly data from 1/1979 to 03/2023
 ensoIndex = read.csv('data/meiv2.csv',sep=",",header=F)
-startIndex = (1982-1979)*12+1; endIndex = (2023-1979)*12
+startIndex = (2011-1979)*12+1; endIndex = (2023-1979)*12
 
-#i want only 1/1982 to 12/2022
+#i want only 1/2011 to 12/2022
 ensoIndex = ensoIndex[startIndex:endIndex]
 
 ensoPos = ensoIndex>=0
@@ -1540,7 +1532,7 @@ ensoNeg_sgSAT = sat.studyAnom[ensoNeg]
 var.test(ensoPos_sgRainf, ensoNeg_sgRainf)
 
 #p-value ~0.5, can be considered same variance?
-t.test(ensoPos_sgRainf, ensoNeg_sgRainf,var.equal=TRUE)
+t.test(ensoPos_sgRainf, ensoNeg_sgRainf,var.equal=FALSE)
 
 #then welch 2-sample test to see if got effect
 var.test(ensoPos_sgSAT, ensoNeg_sgSAT)
@@ -1582,3 +1574,251 @@ t.test(ensoPos_sgSAT, ensoNeg_sgSAT,var.equal=FALSE)
 
 ```
 
+```{r enso_test2}
+
+ensoRainCor = cor(as.vector(t(ensoIndex)),rainf.studyAnom)
+paste("The correlation between ENSO Index and Rainfall Anomaly: ", ensoRainCor)
+ensoSatCor = cor(as.vector(t(ensoIndex)),sat.studyAnom)
+paste("The correlation between ENSO Index and SAT Anomaly: ", ensoSatCor)
+
+#monthly data from 1/1979 to 03/2023
+ensoIndex = read.csv('data/meiv2.csv',sep=",",header=F)
+startIndex = (2011-1979)*12+1; endIndex = (2023-1979)*12
+
+#i want only 1/1982 to 12/2022
+ensoIndex = ensoIndex[startIndex:endIndex]
+
+
+JunToOctIndices = as.vector(sapply(6:10, function(i) seq(i,length(ensoIndex),12)))
+ensoIndexCheck = rep(FALSE,length(ensoIndex)); ensoIndexCheck[JunToOctIndices] = TRUE
+
+ensoPos = ensoIndex>=0 & ensoIndexCheck==TRUE
+ensoNeg = ensoIndex<0 & ensoIndexCheck==TRUE
+
+
+#find enso variable: split sg rainfall and SAT into 2 groups based on enso>0 or enso<0
+
+ensoPos_sgRainf = rainf.studyAnom[ensoPos]
+ensoNeg_sgRainf = rainf.studyAnom[ensoNeg]
+
+ensoPos_sgSAT = sat.studyAnom[ensoPos]
+ensoNeg_sgSAT = sat.studyAnom[ensoNeg]
+
+#then welch 2-sample test to see if got effect
+var.test(ensoPos_sgRainf, ensoNeg_sgRainf)
+
+#p-value ~0.5, can be considered same variance?
+t.test(ensoPos_sgRainf, ensoNeg_sgRainf,var.equal=TRUE)
+
+#then welch 2-sample test to see if got effect
+var.test(ensoPos_sgSAT, ensoNeg_sgSAT)
+
+#p-value ~0.5, can be considered same variance?
+t.test(ensoPos_sgSAT, ensoNeg_sgSAT,var.equal=TRUE)
+```
+
+# 
+# 
+# ensoPos = ensoIndex>=0.3
+# ensoNeg = ensoIndex<=-0.3
+# 
+# 
+# #find enso variable: split sg rainfall and SAT into 2 groups based on enso>0 or enso<0
+# 
+# ensoPos_sgRainf = rainf.anom$anom[ensoPos]
+# ensoNeg_sgRainf = rainf.anom$anom[ensoNeg]
+# 
+# ensoPos_sgSAT = sat.anom$anom[ensoPos]
+# ensoNeg_sgSAT = sat.anom$anom[ensoNeg]
+# 
+# # histogram(ensoPos_sgRainf)
+# 
+# 
+# #then welch 2-sample test to see if got effect
+# var.test(ensoPos_sgRainf, ensoNeg_sgRainf)
+# 
+# #p-value ~0.5, can be considered same variance?
+# t.test(ensoPos_sgRainf, ensoNeg_sgRainf,var.equal=FALSE)
+# 
+# 
+# #then welch 2-sample test to see if got effect
+# var.test(ensoPos_sgSAT, ensoNeg_sgSAT)
+# 
+# #p-value ~0.5, can be considered same variance?
+# t.test(ensoPos_sgSAT, ensoNeg_sgSAT,var.equal=FALSE)
+
+
+
+
+```{r lastneuralnet}
+
+rsquarer = function(obs,pred) {
+  tss = sum((obs-mean(obs))^2)
+  rss = sum((obs-pred)^2)
+  return(1-rss/tss)
+}
+months = c(1,2,10,11,12)
+JunToOctIndices = unlist(sapply(months, function(i) seq(i,nrow(sat.timeshift.df),12)))
+
+sat.timeshift.df.pruned = sat.timeshift.df[JunToOctIndices,]
+n = nrow(sat.timeshift.df.pruned)
+sat.timeshift.df.pruned = sat.timeshift.df.pruned[sample(n),]
+
+
+satFormula = (sat.sg ~ sst.pcf+substemp.pcf+okla.pcf+wind.pcf)
+
+k = 5
+
+groups = cut(1:n,k,label=F)
+
+numCores = detectCores()
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','satFormula','sat.timeshift.df.pruned','groups','rsquarer','randomForest'))
+results = parSapply(cl, 1:k, function(i) {
+  
+  train = sat.timeshift.df.pruned[groups!=i,]
+  test = sat.timeshift.df.pruned[groups==i,]
+  
+  train.st = data.frame(scale(train))
+  means = colMeans(train); sds = apply(train,2,sd)
+  test.st = data.frame(scale(test,center=means,scale=sds))
+  
+  model = glm(formula=satFormula,data=train.st)
+  pred = predict(model,test.st)
+  linearRMSE = sqrt(sum((pred-test.st$sat.sg)^2)/length(test.st))
+  linearRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  net = neuralnet(formula=satFormula,
+                data=train.st,
+                #act.fct='logistic',
+                hidden=c(4,4),
+                algorithm="sag",
+                stepmax=1e+08,
+                linear.output=FALSE)
+  
+  pred = predict(object=net,newdata=test.st)[,1]
+  nnRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  nnRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  rf = randomForest(satFormula,data=train.st)
+  pred = predict(rf,newdata=test.st)
+  rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  rfRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  return(c(linearRMSE,linearRSQ,nnRMSE,nnRSQ,rfRMSE,rfRSQ))
+})
+
+results = data.frame(t(results))
+colnames(results) = c('linearrmse','linearrsq','nnrmse','nnrsq','rfRMSE','rfRSQ')
+colMeans(results)
+  
+
+
+```   
+
+
+```{r, eval=FALSE}
+
+
+rsquarer = function(obs,pred) {
+  tss = sum((obs-mean(obs))^2)
+  rss = sum((obs-pred)^2)
+  return(1-rss/tss)
+}
+
+satFormula = (sat.sg ~ sst.pcf+substemp.pcf+okla.pcf+wind.pcf)
+
+k = 5
+n = nrow(sat.timeshift.df)
+sat.timeshift.df.random = sat.timeshift.df[sample(n),]
+groups = cut(1:n,k,label=F)
+
+numCores = detectCores()
+cl = makeCluster(numCores)
+clusterExport(cl,c('neuralnet','satFormula','sat.timeshift.df.random','groups','rsquarer','randomForest'))
+results = parSapply(cl, 1:k, function(i) {
+  train = sat.timeshift.df.random[groups!=i,]
+  test = sat.timeshift.df.random[groups==i,]
+  
+  train.st = data.frame(scale(train))
+  means = colMeans(train); sds = apply(train,2,sd)
+  test.st = data.frame(scale(test,center=means,scale=sds))
+  
+  model = glm(formula=satFormula,data=train.st)
+  pred = predict(model,test.st)
+  linearRMSE = sqrt(sum((pred-test.st$sat.sg)^2)/length(test.st))
+  linearRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  net = neuralnet(formula=satFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=c(4),
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=FALSE)
+  
+  pred = predict(object=net,newdata=test.st)[,1]
+  nnRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  nnRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  rf = randomForest(satFormula,data=train.st)
+  pred = predict(rf,newdata=test.st)
+  rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  rfRSQ = rsquarer(test.st$sat.sg,pred)
+
+  return(c(linearRMSE,linearRSQ,nnRMSE,nnRSQ,rfRMSE,rfRSQ))
+})
+
+results = data.frame(t(results))
+colnames(results) = c('linearrmse','linearrsq','nnrmse','nnrsq','rfRMSE','rfRSQ')
+colMeans(results)
+
+```
+
+#timeshiftedSATDF = timeshiftedSATDF[sample(n),]
+
+  train = timeshiftedSATDF[groups!=i,]
+  test = timeshiftedSATDF[groups==i,]
+  
+  train.st = data.frame(scale(train))
+  means = colMeans(train); sds = apply(train,2,sd)
+  test.st = data.frame(scale(test,center=means,scale=sds))
+  
+  model = glm(formula=satFormula,data=train.st)
+  pred = predict(model,test.st)
+  #linearRMSE = sqrt((pred-test.st$sat.sg)^2)
+  linearRMSE = sqrt(sum((pred-test.st$sat.sg)^2)/length(test.st))
+  linearRSQ = rsquarer(test.st$sat.sg,pred)
+  #linearResult = with(summary(model), 1 - deviance/null.deviance)
+  
+  net = neuralnet(formula=satFormula,
+                  data=train.st,
+                  #act.fct='logistic',
+                  hidden=c(4),
+                  algorithm="sag",
+                  stepmax=1e+08,
+                  linear.output=FALSE)
+  
+  pred = predict(object=net,newdata=test.st)[,1]
+  nnRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  nnRSQ = rsquarer(test.st$sat.sg,pred)
+  
+  xgb = xgboost(data = as.matrix(train.st[,2:5]), label = train.st[,1], params = params,  nrounds = 100)
+  pred = predict(xgb,as.matrix(test.st[,2:5]))
+  xgbRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  xgbRSQ = rsquarer(test.st$sat.sg,pred)
+  
+
+  # 
+  # rnn = trainr(Y=train.st[,1],X=train.st[,2:5],learningrate=1)
+  # pred = predictr(rnn,X=test.st[,2:5])
+  # rfRMSE = sqrt(sum((pred-test.st$sat.sg)^2/length(test.st)))
+  # rfRSQ = rsquarer(test.st$sat.sg,pred)
+  
+
+  return(c(linearRMSE,linearRSQ,nnRMSE,nnRSQ,rfRMSE,rfRSQ,xgbRMSE,xgbRSQ))
+})
+
+results = data.frame(t(results))
+colnames(results) = c('linearrmse','linearrsq','nnrmse','nnrsq','rfRMSE','rfRSQ','xgbRMSE','xgbRSQ')
+colMeans(results)
